@@ -9,9 +9,14 @@ export interface TokenResponse {
   expires_in: number;
 }
 
+export interface ECRImage {
+  tag: string;
+  pushedAt: string;
+}
+
 export interface ServiceStatus {
   serviceName: string;
-  ecrPushed: boolean;
+  images: ECRImage[];
   status: 'RUNNING' | 'PENDING' | 'STOPPED';
 }
 
@@ -97,17 +102,25 @@ export async function uploadToS3(url: string, file: File, onProgress: (pct: numb
  * 4. Fetch the 8 ECS services statuses
  */
 export async function getServicesStatus(): Promise<ServiceStatus[]> {
+  const mockImages = (name: string): ECRImage[] => [
+    { tag: `v1.0.5`, pushedAt: new Date(Date.now() - 1000 * 60 * 30).toISOString() },
+    { tag: `v1.0.4`, pushedAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString() },
+    { tag: `v1.0.3`, pushedAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString() },
+    { tag: `v1.0.2`, pushedAt: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString() },
+    { tag: `v1.0.1`, pushedAt: new Date(Date.now() - 1000 * 60 * 60 * 72).toISOString() },
+  ];
+
   return new Promise((resolve) => {
     setTimeout(() => {
       resolve([
-        { serviceName: 'Service 1', ecrPushed: true, status: 'RUNNING' },
-        { serviceName: 'Service 2', ecrPushed: false, status: 'PENDING' },
-        { serviceName: 'Service 3', ecrPushed: true, status: 'RUNNING' },
-        { serviceName: 'Service 4', ecrPushed: true, status: 'RUNNING' },
-        { serviceName: 'Service 5', ecrPushed: true, status: 'RUNNING' },
-        { serviceName: 'Service 6', ecrPushed: true, status: 'RUNNING' },
-        { serviceName: 'Service 7', ecrPushed: true, status: 'STOPPED' },
-        { serviceName: 'Service 8', ecrPushed: true, status: 'RUNNING' },
+        { serviceName: 'Service 1', images: mockImages('Service 1'), status: 'RUNNING' },
+        { serviceName: 'Service 2', images: mockImages('Service 2'), status: 'PENDING' },
+        { serviceName: 'Service 3', images: mockImages('Service 3'), status: 'RUNNING' },
+        { serviceName: 'Service 4', images: mockImages('Service 4'), status: 'RUNNING' },
+        { serviceName: 'Service 5', images: mockImages('Service 5'), status: 'RUNNING' },
+        { serviceName: 'Service 6', images: mockImages('Service 6'), status: 'RUNNING' },
+        { serviceName: 'Service 7', images: mockImages('Service 7'), status: 'STOPPED' },
+        { serviceName: 'Service 8', images: mockImages('Service 8'), status: 'RUNNING' },
       ]);
     }, 500);
   });

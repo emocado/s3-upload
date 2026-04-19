@@ -1,13 +1,23 @@
 import React, { useState } from 'react';
-import { Box, Code2, RotateCw, Loader2, CheckCircle2 } from 'lucide-react';
+import { Box, Code2, RotateCw, Loader2, History, Tag, Clock } from 'lucide-react';
 import { getTaskDefinition, restartService } from '../services/api';
-import type { ServiceStatus, TaskDefinition } from '../services/api';
+import type { ServiceStatus, TaskDefinition, ECRImage } from '../services/api';
 import { TaskDefModal } from './TaskDefModal';
 
 interface ServiceCardProps {
   service: ServiceStatus;
   onActionComplete: () => void;
 }
+
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
 
 export const ServiceCard: React.FC<ServiceCardProps> = ({ service }) => {
   const [loadingConfig, setLoadingConfig] = useState(false);
@@ -29,7 +39,6 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service }) => {
   };
 
   const handleRestart = async () => {
-    // Basic confirmation
     if (!window.confirm(`Are you sure you want to restart ${service.serviceName}?`)) return;
     
     setRestarting(true);
@@ -61,13 +70,23 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service }) => {
         </div>
 
         <div style={styles.content}>
-          <div style={styles.row}>
-            <span style={styles.label}>ECR Image Status</span>
-            {service.ecrPushed ? (
-              <span style={styles.valueSuccess}><CheckCircle2 size={16} /> Pushed</span>
-            ) : (
-              <span style={styles.valueWarning}>Pending</span>
-            )}
+          <div style={styles.historyHeader}>
+            <History size={14} color="var(--text-secondary)" />
+            <span style={styles.label}>Latest ECR Images</span>
+          </div>
+          <div style={styles.imageList}>
+            {service.images.map((img: ECRImage, idx: number) => (
+              <div key={idx} style={styles.imageRow}>
+                <div style={styles.tagBadge}>
+                  <Tag size={10} />
+                  {img.tag}
+                </div>
+                <div style={styles.timestamp}>
+                  <Clock size={10} />
+                  {formatDate(img.pushedAt)}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -130,27 +149,38 @@ const styles = {
     borderTop: '1px solid var(--border-subtle)',
     borderBottom: '1px solid var(--border-subtle)',
   },
-  row: {
+  historyHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    marginBottom: '4px',
+  },
+  imageList: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '8px',
+  },
+  imageRow: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
+    padding: '6px 8px',
+    borderRadius: 'var(--radius-sm)',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    fontSize: '12px',
   },
-  label: {
-    fontSize: '13px',
-    color: 'var(--text-secondary)',
-  },
-  valueSuccess: {
-    fontSize: '13px',
-    fontWeight: 500,
-    color: 'var(--success)',
+  tagBadge: {
     display: 'flex',
     alignItems: 'center',
     gap: '4px',
-  },
-  valueWarning: {
-    fontSize: '13px',
     fontWeight: 500,
-    color: 'var(--warning)',
+    color: 'var(--accent-primary)',
+  },
+  timestamp: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+    color: 'var(--text-secondary)',
   },
   actions: {
     display: 'flex',

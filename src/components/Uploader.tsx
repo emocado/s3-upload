@@ -18,10 +18,6 @@ export const Uploader: React.FC = () => {
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: {
-      'application/x-tar': ['.tar'],
-      'application/gzip': ['.tar.gz', '.tgz']
-    },
     maxFiles: 1
   });
 
@@ -42,8 +38,8 @@ export const Uploader: React.FC = () => {
 
   return (
     <div className="glass-panel" style={styles.container}>
-      <h2 style={styles.title}>Upload Docker Image</h2>
-      <p style={styles.subtitle}>Upload your .tar or .tar.gz image to S3 to trigger the CodeBuild pipeline.</p>
+      <h2 style={styles.title}>Upload File</h2>
+      <p style={styles.subtitle}>Upload your file to S3 to trigger the deployment pipeline.</p>
       
       {!file || status === 'success' ? (
         <div 
@@ -57,9 +53,9 @@ export const Uploader: React.FC = () => {
           <input {...getInputProps()} />
           <UploadCloud size={48} color="var(--text-secondary)" style={{ marginBottom: '16px' }} />
           {isDragActive ? (
-            <p style={styles.dropText}>Drop the tar file here ...</p>
+            <p style={styles.dropText}>Drop the file here ...</p>
           ) : (
-            <p style={styles.dropText}>Drag & drop a .tar image here, or click to select</p>
+            <p style={styles.dropText}>Drag & drop a file here, or click to select</p>
           )}
         </div>
       ) : (

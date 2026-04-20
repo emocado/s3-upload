@@ -60,6 +60,9 @@ resource "aws_api_gateway_method" "presigned_url" {
   http_method   = "GET"
   authorization = "COGNITO_USER_POOLS"
   authorizer_id = aws_api_gateway_authorizer.cognito.id
+  authorization_scopes = [
+    "${aws_cognito_resource_server.api.identifier}/all",
+  ]
 }
 resource "aws_api_gateway_integration" "presigned_url" {
   rest_api_id = aws_api_gateway_rest_api.main.id
@@ -77,6 +80,45 @@ resource "aws_lambda_permission" "presigned_url" {
   source_arn    = "${aws_api_gateway_rest_api.main.execution_arn}/*/*"
 }
 
+# CORS for /presigned-url
+resource "aws_api_gateway_method" "presigned_url_cors" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.presigned_url.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+resource "aws_api_gateway_integration" "presigned_url_cors" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.presigned_url.id
+  http_method = aws_api_gateway_method.presigned_url_cors.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = "{ \"statusCode\": 200 }"
+  }
+}
+resource "aws_api_gateway_method_response" "presigned_url_cors" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.presigned_url.id
+  http_method = aws_api_gateway_method.presigned_url_cors.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+resource "aws_api_gateway_integration_response" "presigned_url_cors" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.presigned_url.id
+  http_method = aws_api_gateway_method.presigned_url_cors.http_method
+  status_code = aws_api_gateway_method_response.presigned_url_cors.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,POST,OPTIONS,PUT'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'*'"
+  }
+}
+
 # 2. getServicesStatus (/services)
 resource "aws_api_gateway_method" "services" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
@@ -84,6 +126,9 @@ resource "aws_api_gateway_method" "services" {
   http_method   = "GET"
   authorization = "COGNITO_USER_POOLS"
   authorizer_id = aws_api_gateway_authorizer.cognito.id
+  authorization_scopes = [
+    "${aws_cognito_resource_server.api.identifier}/all",
+  ]
 }
 resource "aws_api_gateway_integration" "services" {
   rest_api_id = aws_api_gateway_rest_api.main.id
@@ -101,6 +146,45 @@ resource "aws_lambda_permission" "services" {
   source_arn    = "${aws_api_gateway_rest_api.main.execution_arn}/*/*"
 }
 
+# CORS for /services
+resource "aws_api_gateway_method" "services_cors" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.services.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+resource "aws_api_gateway_integration" "services_cors" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.services.id
+  http_method = aws_api_gateway_method.services_cors.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = "{ \"statusCode\": 200 }"
+  }
+}
+resource "aws_api_gateway_method_response" "services_cors" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.services.id
+  http_method = aws_api_gateway_method.services_cors.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+resource "aws_api_gateway_integration_response" "services_cors" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.services.id
+  http_method = aws_api_gateway_method.services_cors.http_method
+  status_code = aws_api_gateway_method_response.services_cors.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,POST,OPTIONS,PUT'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'*'"
+  }
+}
+
 # 3. getTaskDefinition (/task-definition)
 resource "aws_api_gateway_method" "task_def" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
@@ -108,6 +192,9 @@ resource "aws_api_gateway_method" "task_def" {
   http_method   = "GET"
   authorization = "COGNITO_USER_POOLS"
   authorizer_id = aws_api_gateway_authorizer.cognito.id
+  authorization_scopes = [
+    "${aws_cognito_resource_server.api.identifier}/all",
+  ]
 }
 resource "aws_api_gateway_integration" "task_def" {
   rest_api_id = aws_api_gateway_rest_api.main.id
@@ -125,6 +212,45 @@ resource "aws_lambda_permission" "task_def" {
   source_arn    = "${aws_api_gateway_rest_api.main.execution_arn}/*/*"
 }
 
+# CORS for /task-definition
+resource "aws_api_gateway_method" "task_def_cors" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.task_def.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+resource "aws_api_gateway_integration" "task_def_cors" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.task_def.id
+  http_method = aws_api_gateway_method.task_def_cors.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = "{ \"statusCode\": 200 }"
+  }
+}
+resource "aws_api_gateway_method_response" "task_def_cors" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.task_def.id
+  http_method = aws_api_gateway_method.task_def_cors.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+resource "aws_api_gateway_integration_response" "task_def_cors" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.task_def.id
+  http_method = aws_api_gateway_method.task_def_cors.http_method
+  status_code = aws_api_gateway_method_response.task_def_cors.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,POST,OPTIONS,PUT'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'*'"
+  }
+}
+
 # 4. updateTaskDefinition (/update-task)
 resource "aws_api_gateway_method" "update_task" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
@@ -132,6 +258,9 @@ resource "aws_api_gateway_method" "update_task" {
   http_method   = "POST"
   authorization = "COGNITO_USER_POOLS"
   authorizer_id = aws_api_gateway_authorizer.cognito.id
+  authorization_scopes = [
+    "${aws_cognito_resource_server.api.identifier}/all",
+  ]
 }
 resource "aws_api_gateway_integration" "update_task" {
   rest_api_id = aws_api_gateway_rest_api.main.id
@@ -149,6 +278,45 @@ resource "aws_lambda_permission" "update_task" {
   source_arn    = "${aws_api_gateway_rest_api.main.execution_arn}/*/*"
 }
 
+# CORS for /update-task
+resource "aws_api_gateway_method" "update_task_cors" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.update_task.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+resource "aws_api_gateway_integration" "update_task_cors" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.update_task.id
+  http_method = aws_api_gateway_method.update_task_cors.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = "{ \"statusCode\": 200 }"
+  }
+}
+resource "aws_api_gateway_method_response" "update_task_cors" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.update_task.id
+  http_method = aws_api_gateway_method.update_task_cors.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+resource "aws_api_gateway_integration_response" "update_task_cors" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.update_task.id
+  http_method = aws_api_gateway_method.update_task_cors.http_method
+  status_code = aws_api_gateway_method_response.update_task_cors.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,POST,OPTIONS,PUT'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'*'"
+  }
+}
+
 # 5. restartService (/restart)
 resource "aws_api_gateway_method" "restart" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
@@ -156,6 +324,9 @@ resource "aws_api_gateway_method" "restart" {
   http_method   = "POST"
   authorization = "COGNITO_USER_POOLS"
   authorizer_id = aws_api_gateway_authorizer.cognito.id
+  authorization_scopes = [
+    "${aws_cognito_resource_server.api.identifier}/all",
+  ]
 }
 resource "aws_api_gateway_integration" "restart" {
   rest_api_id = aws_api_gateway_rest_api.main.id
@@ -173,6 +344,45 @@ resource "aws_lambda_permission" "restart" {
   source_arn    = "${aws_api_gateway_rest_api.main.execution_arn}/*/*"
 }
 
+# CORS for /restart
+resource "aws_api_gateway_method" "restart_cors" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.restart.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+resource "aws_api_gateway_integration" "restart_cors" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.restart.id
+  http_method = aws_api_gateway_method.restart_cors.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = "{ \"statusCode\": 200 }"
+  }
+}
+resource "aws_api_gateway_method_response" "restart_cors" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.restart.id
+  http_method = aws_api_gateway_method.restart_cors.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+resource "aws_api_gateway_integration_response" "restart_cors" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.restart.id
+  http_method = aws_api_gateway_method.restart_cors.http_method
+  status_code = aws_api_gateway_method_response.restart_cors.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,POST,OPTIONS,PUT'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'*'"
+  }
+}
+
 # --- Deployment & Stage ---
 
 resource "aws_api_gateway_deployment" "main" {
@@ -181,7 +391,12 @@ resource "aws_api_gateway_deployment" "main" {
     aws_api_gateway_integration.services,
     aws_api_gateway_integration.task_def,
     aws_api_gateway_integration.update_task,
-    aws_api_gateway_integration.restart
+    aws_api_gateway_integration.restart,
+    aws_api_gateway_integration_response.presigned_url_cors,
+    aws_api_gateway_integration_response.services_cors,
+    aws_api_gateway_integration_response.task_def_cors,
+    aws_api_gateway_integration_response.update_task_cors,
+    aws_api_gateway_integration_response.restart_cors
   ]
 
   rest_api_id = aws_api_gateway_rest_api.main.id

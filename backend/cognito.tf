@@ -67,3 +67,15 @@ resource "aws_cognito_user_pool_client" "web_client" {
   callback_urls                        = ["http://localhost:5173"]
   supported_identity_providers         = ["COGNITO"]
 }
+
+# Default Admin User
+resource "aws_cognito_user" "admin" {
+  user_pool_id = aws_cognito_user_pool.pool.id
+  username     = "admin@example.com"
+  password     = "Password123!"
+
+  attributes = {
+    email          = "admin@example.com"
+    email_verified = true
+  }
+}

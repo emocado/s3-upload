@@ -35,7 +35,10 @@ export interface TaskDefinition {
 // Global variable to hold token for this session
 let accessToken: string | null = null;
 
-export const setAccessToken = (token: string) => {
+/**
+ * Helper to set the token globally in this module after login.
+ */
+export const setAccessToken = (token: string | null) => {
   accessToken = token;
 };
 

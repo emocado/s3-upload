@@ -72,7 +72,7 @@ resource "aws_lambda_function" "get_services_status" {
   handler          = "getServicesStatus.handler"
   runtime          = "nodejs18.x"
   source_code_hash = data.archive_file.get_services_status.output_base64sha256
-  timeout          = 30
+  timeout          = 10
 
   vpc_config {
     subnet_ids         = var.subnet_ids

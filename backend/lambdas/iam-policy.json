@@ -1,0 +1,44 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "ECSManagement",
+            "Effect": "Allow",
+            "Action": [
+                "ecs:ListServices",
+                "ecs:DescribeServices",
+                "ecs:UpdateService",
+                "ecs:DescribeTaskDefinition",
+                "ecs:RegisterTaskDefinition"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "ECRReadOnly",
+            "Effect": "Allow",
+            "Action": [
+                "ecr:DescribeImages",
+                "ecr:ListImages"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "S3Presign",
+            "Effect": "Allow",
+            "Action": [
+                "s3:PutObject"
+            ],
+            "Resource": "arn:aws:s3:::YOUR_S3_BUCKET/*"
+        },
+        {
+            "Sid": "CloudWatchLogging",
+            "Effect": "Allow",
+            "Action": [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+            ],
+            "Resource": "arn:aws:logs:*:*:*"
+        }
+    ]
+}

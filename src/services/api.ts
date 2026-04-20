@@ -3,6 +3,10 @@
  * Handlers for authentication and simulated ECS/S3 backend endpoints.
  */
 
+const API_BASE_URL = 'https://5y4fp0ghhe.execute-api.ap-southeast-1.amazonaws.com/prod';
+// Example: https://ecs-dash-xxxxxx.auth.ap-southeast-1.amazoncognito.com
+const COGNITO_DOMAIN_URL = 'https://ecs-dash-0bxd6j.auth.ap-southeast-1.amazoncognito.com';
+
 // Define our types
 export interface TokenResponse {
   access_token: string;
@@ -38,45 +42,48 @@ export const setAccessToken = (token: string) => {
 export const getAccessToken = () => accessToken;
 
 /**
- * 1. Simulates calling Cognito or API gateway using client credentials to get a token.
- * Since this is purely front-end and a mock, we just return a fake token.
+ * 1. Authenticate using Cognito OAuth2 Client Credentials flow.
  */
 export async function authenticateWithClientCredentials(clientId: string, clientSecret: string): Promise<TokenResponse> {
-  // In a real scenario, this hits Cognito Token Endpoint
-  // const response = await fetch('https://cognito-domain.auth.us-east-1.amazoncognito.com/oauth2/token', ...)
-  
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const mockToken = btoa(`${clientId}:${clientSecret}-mock-token`);
-      resolve({
-        access_token: mockToken,
-        expires_in: 3600
-      });
-    }, 800); // simulate network latency
+  const params = new URLSearchParams();
+  params.append('grant_type', 'client_credentials');
+  params.append('scope', 'ecs-api/all');
+
+  const response = await fetch(`${COGNITO_DOMAIN_URL}/oauth2/token`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Authorization': `Basic ${btoa(`${clientId}:${clientSecret}`)}`,
+    },
+    body: params.toString(),
   });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Authentication failed');
+  }
+
+  return response.json();
 }
 
 /**
  * 2. Get S3 Presigned URL from API Gateway
  */
 export async function getPresignedUrl(filename: string): Promise<{ uploadUrl: string }> {
-  // Mock API call
-  return new Promise((resolve) => setTimeout(() => {
-    resolve({ uploadUrl: `https://mock-s3-bucket.s3.amazonaws.com/${filename}?presigned=true` });
-  }, 500));
+  const response = await authFetch(`${API_BASE_URL}/presigned-url?filename=${encodeURIComponent(filename)}`);
+  if (!response.ok) throw new Error('Failed to get presigned URL');
+  return response.json();
 }
 
 /**
  * 3. Upload file to S3 using Presigned URL
- * We use fetch/XHR to PUT the file. 
  */
 export async function uploadToS3(url: string, file: File, onProgress: (pct: number) => void): Promise<void> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("PUT", url, true);
-    // Don't set Content-Type header so browser sets it correctly or S3 accepts as-is, depending on presigned URL setup
     xhr.setRequestHeader("Content-Type", file.type || 'application/octet-stream');
-    
+
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable) {
         const percentComplete = Math.round((event.loaded / event.total) * 100);
@@ -93,94 +100,59 @@ export async function uploadToS3(url: string, file: File, onProgress: (pct: numb
     };
 
     xhr.onerror = () => reject(new Error('Network error during upload'));
-
     xhr.send(file);
   });
 }
 
 /**
- * 4. Fetch the 8 ECS services statuses
+ * 4. Fetch the ECS services statuses
  */
 export async function getServicesStatus(): Promise<ServiceStatus[]> {
-  const mockImages = (name: string): ECRImage[] => [
-    { tag: `v1.0.5`, pushedAt: new Date(Date.now() - 1000 * 60 * 30).toISOString() },
-    { tag: `v1.0.4`, pushedAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString() },
-    { tag: `v1.0.3`, pushedAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString() },
-    { tag: `v1.0.2`, pushedAt: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString() },
-    { tag: `v1.0.1`, pushedAt: new Date(Date.now() - 1000 * 60 * 60 * 72).toISOString() },
-  ];
-
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve([
-        { serviceName: 'Service 1', images: mockImages('Service 1'), status: 'RUNNING' },
-        { serviceName: 'Service 2', images: mockImages('Service 2'), status: 'PENDING' },
-        { serviceName: 'Service 3', images: mockImages('Service 3'), status: 'RUNNING' },
-        { serviceName: 'Service 4', images: mockImages('Service 4'), status: 'RUNNING' },
-        { serviceName: 'Service 5', images: mockImages('Service 5'), status: 'RUNNING' },
-        { serviceName: 'Service 6', images: mockImages('Service 6'), status: 'RUNNING' },
-        { serviceName: 'Service 7', images: mockImages('Service 7'), status: 'STOPPED' },
-        { serviceName: 'Service 8', images: mockImages('Service 8'), status: 'RUNNING' },
-      ]);
-    }, 500);
-  });
+  const response = await authFetch(`${API_BASE_URL}/services`);
+  if (!response.ok) throw new Error('Failed to fetch services status');
+  return response.json();
 }
 
 /**
  * 5. Get Task Definition for a service
  */
 export async function getTaskDefinition(serviceName: string): Promise<TaskDefinition> {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({
-        family: `${serviceName}-task`,
-        cpu: "256",
-        memory: "512",
-        networkMode: "awsvpc",
-        containerDefinitions: [
-          {
-            name: "app",
-            image: "123456789012.dkr.ecr.us-east-1.amazonaws.com/my-repo:latest",
-            essential: true,
-            portMappings: [{ containerPort: 80, hostPort: 80 }]
-          }
-        ]
-      });
-    }, 600);
-  });
+  const response = await authFetch(`${API_BASE_URL}/task-definition?serviceName=${encodeURIComponent(serviceName)}`);
+  if (!response.ok) throw new Error(`Failed to fetch task definition for ${serviceName}`);
+  return response.json();
 }
 
 /**
  * 6. Update Task Definition
  */
 export async function updateTaskDefinition(serviceName: string, newTaskDef: TaskDefinition): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      console.log(`Updated task def for ${serviceName}`, newTaskDef);
-      resolve();
-    }, 800);
+  const response = await authFetch(`${API_BASE_URL}/update-task`, {
+    method: 'POST',
+    body: JSON.stringify(newTaskDef),
   });
+  if (!response.ok) throw new Error(`Failed to update task definition for ${serviceName}`);
 }
 
 /**
  * 7. Restart ECS Service with latest task def
  */
 export async function restartService(serviceName: string): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      console.log(`Restarted ${serviceName}`);
-      resolve();
-    }, 1000);
+  const response = await authFetch(`${API_BASE_URL}/restart`, {
+    method: 'POST',
+    body: JSON.stringify({ serviceName }),
   });
+  if (!response.ok) throw new Error(`Failed to restart ${serviceName}`);
 }
 
-// Helper to simulate calling real API and attaching header
+/**
+ * Helper to call real API and attach Authorization header
+ */
 export async function authFetch(url: string, options: RequestInit = {}) {
   const token = getAccessToken();
   const headers = {
     ...options.headers,
+    'Content-Type': 'application/json',
     'Authorization': `Bearer ${token}`
   };
-  // Fake the fetch call logic for now since everything is mocked in functions above.
-  return fetch(url, { ...options, headers: headers as any });
+  return fetch(url, { ...options, headers });
 }

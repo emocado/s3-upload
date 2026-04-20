@@ -1,0 +1,9 @@
+# Copy this file to terraform.tfvars and fill in the values
+
+aws_region = "us-east-1"
+vpc_id     = "vpc-xxxxxxxxxxxxxxxxx"
+subnet_ids = [
+  "subnet-xxxxxxxxxxxxxxxxx",
+  "subnet-yyyyyyyyyyyyyyyyy"
+]
+project_name = "ecs-dashboard"

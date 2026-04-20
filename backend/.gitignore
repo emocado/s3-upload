@@ -1,0 +1,25 @@
+# Terraform
+.terraform
+.terraform.lock.hcl
+
+# Terraform variables
+terraform.tfvars
+
+# Terraform state
+terraform.tfstate
+terraform.tfstate.backup
+
+# Terraform cache
+.terraform.cache
+
+# Terraform logs
+*.log
+
+# Terraform outputs
+*.out
+
+# Terraform plan
+*.plan
+
+# Terraform workspace
+.terraform.workspace

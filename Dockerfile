@@ -13,8 +13,8 @@ RUN npm install
 # Copy the rest of the application code
 COPY . .
 
-# Expose the default Vite port
-EXPOSE 5173
+# Expose the new port
+EXPOSE 7777
 
 # Start the development server
 # --host 0.0.0.0 is handled inside vite.config.ts but added here for safety

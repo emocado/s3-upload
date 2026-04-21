@@ -1,0 +1,126 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudFormation template to create VPC Interface Endpoints for ECS and ECR with a shared security group.'
+
+Parameters:
+  VpcId:
+    Type: 'AWS::EC2::VPC::Id'
+    Description: 'The VPC ID where the endpoints will be created.'
+
+  VpcCidr:
+    Type: 'String'
+    Description: 'The CIDR block of the VPC (e.g., 10.0.0.0/16).'
+    Default: '10.0.0.0/16'
+
+  SubnetIds:
+    Type: 'List<AWS::EC2::Subnet::Id>'
+    Description: 'The list of Subnet IDs where the Interface Endpoints will be created (usually private subnets).'
+
+Resources:
+  # Shared Security Group for all Interface Endpoints
+  VPCEndpointSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: 'Security group for ECS and ECR VPC Interface Endpoints'
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: 'tcp'
+          FromPort: 443
+          ToPort: 443
+          CidrIp: !Ref VpcCidr
+      Tags:
+        - Key: 'Name'
+          Value: 'ecs-ecr-vpce-sg'
+
+  # ECR API Endpoint
+  EcrApiEndpoint:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Properties:
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ecr.api'
+      VpcEndpointType: 'Interface'
+      PrivateDnsEnabled: true
+      VpcId: !Ref VpcId
+      SubnetIds: !Ref SubnetIds
+      SecurityGroupIds:
+        - !Ref VPCEndpointSecurityGroup
+
+  # ECR DKR Endpoint
+  EcrDkrEndpoint:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Properties:
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ecr.dkr'
+      VpcEndpointType: 'Interface'
+      PrivateDnsEnabled: true
+      VpcId: !Ref VpcId
+      SubnetIds: !Ref SubnetIds
+      SecurityGroupIds:
+        - !Ref VPCEndpointSecurityGroup
+
+  # ECS Endpoint
+  EcsEndpoint:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Properties:
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ecs'
+      VpcEndpointType: 'Interface'
+      PrivateDnsEnabled: true
+      VpcId: !Ref VpcId
+      SubnetIds: !Ref SubnetIds
+      SecurityGroupIds:
+        - !Ref VPCEndpointSecurityGroup
+
+  # ECS Agent Endpoint
+  EcsAgentEndpoint:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Properties:
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ecs-agent'
+      VpcEndpointType: 'Interface'
+      PrivateDnsEnabled: true
+      VpcId: !Ref VpcId
+      SubnetIds: !Ref SubnetIds
+      SecurityGroupIds:
+        - !Ref VPCEndpointSecurityGroup
+
+  # ECS Telemetry Endpoint
+  EcsTelemetryEndpoint:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Properties:
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ecs-telemetry'
+      VpcEndpointType: 'Interface'
+      PrivateDnsEnabled: true
+      VpcId: !Ref VpcId
+      SubnetIds: !Ref SubnetIds
+      SecurityGroupIds:
+        - !Ref VPCEndpointSecurityGroup
+
+  # S3 Interface Endpoint
+  S3InterfaceEndpoint:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Properties:
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.s3'
+      VpcEndpointType: 'Interface'
+      # Note: S3 Interface endpoints do not support PrivateDnsEnabled for the base S3 hostname.
+      # PrivateDnsEnabled: true is not supported for S3 Interface endpoints yet in some regions/configs.
+      VpcId: !Ref VpcId
+      SubnetIds: !Ref SubnetIds
+      SecurityGroupIds:
+        - !Ref VPCEndpointSecurityGroup
+
+Outputs:
+  SecurityGroupId:
+    Description: 'The ID of the shared security group for the VPC Endpoints.'
+    Value: !Ref VPCEndpointSecurityGroup
+
+  EcrApiEndpointId:
+    Description: 'The ID of the ECR API VPC Endpoint.'
+    Value: !Ref EcrApiEndpoint
+
+  EcrDkrEndpointId:
+    Description: 'The ID of the ECR DKR VPC Endpoint.'
+    Value: !Ref EcrDkrEndpoint
+
+  EcsEndpointId:
+    Description: 'The ID of the ECS VPC Endpoint.'
+    Value: !Ref EcsEndpoint
+
+  S3InterfaceEndpointId:
+    Description: 'The ID of the S3 Interface VPC Endpoint.'
+    Value: !Ref S3InterfaceEndpoint

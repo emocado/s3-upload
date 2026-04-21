@@ -25,17 +25,28 @@ const ecsClient = new ECSClient({ region: process.env.AWS_REGION || 'us-east-1' 
 const CLUSTER = process.env.CLUSTER_NAME;
 
 /**
- * Lambda for: restartService
- * Expects 'serviceName' in body (POST) or query string
+ * Lambda for: restartService (renamed logic to Manage Service)
+ * Expects 'serviceName', optional 'action', and optional 'taskDefinition' in body
+ * Actions: 'restart' (default), 'start', 'stop'
  */
 exports.handler = async (event) => {
   let serviceName = '';
+  let action = 'restart';
+  let taskDefinition = null;
   
-  if (event.queryStringParameters && event.queryStringParameters.serviceName) {
-    serviceName = event.queryStringParameters.serviceName;
-  } else if (event.body) {
-    const body = JSON.parse(event.body);
-    serviceName = body.serviceName;
+  try {
+    if (event.body) {
+      const body = JSON.parse(event.body);
+      serviceName = body.serviceName;
+      action = body.action || 'restart';
+      taskDefinition = body.taskDefinition || null;
+    } else if (event.queryStringParameters) {
+      serviceName = event.queryStringParameters.serviceName;
+      action = event.queryStringParameters.action || 'restart';
+      taskDefinition = event.queryStringParameters.taskDefinition || null;
+    }
+  } catch (e) {
+    return formatError(400, 'Invalid request body');
   }
 
   if (!serviceName) {
@@ -43,18 +54,32 @@ exports.handler = async (event) => {
   }
 
   try {
-    const command = new UpdateServiceCommand({
+    const updateParams = {
       cluster: CLUSTER,
       service: serviceName,
-      forceNewDeployment: true
-    });
+    };
 
+    if (taskDefinition) {
+      updateParams.taskDefinition = taskDefinition;
+    }
+
+    if (action === 'stop') {
+      updateParams.desiredCount = 0;
+    } else if (action === 'start') {
+      updateParams.desiredCount = 1;
+    } else if (action === 'restart') {
+      updateParams.forceNewDeployment = true;
+      // If restarting, we usually want at least one task running
+      // updateParams.desiredCount = 1; // Optional: ensure it's not starting into a stopped state
+    }
+
+    const command = new UpdateServiceCommand(updateParams);
     await ecsClient.send(command);
 
     return formatResponse(200, { 
-      message: `Restart initiated for service ${serviceName} in cluster ${CLUSTER}` 
+      message: `Action '${action}' initiated for service ${serviceName} in cluster ${CLUSTER}${taskDefinition ? ` with task definition ${taskDefinition}` : ''}` 
     });
   } catch (err) {
-    return formatError(500, `Failed to restart service ${serviceName}`, err);
+    return formatError(500, `Failed to ${action} service ${serviceName}`, err);
   }
 };

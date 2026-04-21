@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Box, Code2, RotateCw, Loader2, History, Tag, Clock } from 'lucide-react';
-import { getTaskDefinition, restartService } from '../services/api';
+import { Box, Code2, RotateCw, Loader2, History, Tag, Clock, Play, Square } from 'lucide-react';
+import { getTaskDefinition, manageService } from '../services/api';
 import type { ServiceStatus, TaskDefinition, ECRImage } from '../services/api';
 import { TaskDefModal } from './TaskDefModal';
 
@@ -19,17 +19,16 @@ const formatDate = (dateString: string) => {
   });
 };
 
-export const ServiceCard: React.FC<ServiceCardProps> = ({ service }) => {
+export const ServiceCard: React.FC<ServiceCardProps> = ({ service, onActionComplete }) => {
   const [loadingConfig, setLoadingConfig] = useState(false);
   const [restarting, setRestarting] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [taskDef, setTaskDef] = useState<TaskDefinition | null>(null);
-
+  const [taskDefs, setTaskDefs] = useState<TaskDefinition[]>([]);
   const handleViewTaskDef = async () => {
     setLoadingConfig(true);
     try {
-      const def = await getTaskDefinition(service.serviceName);
-      setTaskDef(def);
+      const defs = await getTaskDefinition(service.serviceName);
+      setTaskDefs(defs);
       setShowModal(true);
     } catch (err) {
       console.error(err);
@@ -38,20 +37,31 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service }) => {
     }
   };
 
-  const handleRestart = async () => {
-    if (!window.confirm(`Are you sure you want to restart ${service.serviceName}?`)) return;
+  const handleManage = async (action: 'restart' | 'start' | 'stop') => {
+    const confirmMsg = {
+      restart: `Are you sure you want to restart ${service.serviceName}?`,
+      start: `Are you sure you want to start ${service.serviceName}?`,
+      stop: `Are you sure you want to stop ${service.serviceName}? This will terminate all running tasks.`
+    }[action];
+
+    if (!window.confirm(confirmMsg)) return;
     
     setRestarting(true);
     try {
-      await restartService(service.serviceName);
-      alert(`${service.serviceName} restart initiated.`);
+      await manageService(service.serviceName, action);
+      alert(`${service.serviceName} ${action} initiated.`);
+      onActionComplete();
     } catch (err) {
       console.error(err);
-      alert(`Failed to restart ${service.serviceName}.`);
+      alert(`Failed to ${action} ${service.serviceName}.`);
     } finally {
       setRestarting(false);
     }
   };
+
+  const isRunning = service.status === 'RUNNING';
+  const isStopped = service.status === 'STOPPED';
+  const isPending = service.status === 'PENDING';
 
   return (
     <>
@@ -91,23 +101,56 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service }) => {
         </div>
 
         <div style={styles.actions}>
-          <button className="button button-secondary" style={styles.btnFull} onClick={handleViewTaskDef} disabled={loadingConfig}>
+          <button 
+            className="button button-secondary" 
+            style={styles.btnSecondary} 
+            onClick={handleViewTaskDef} 
+            disabled={loadingConfig}
+            title="View History & Config"
+          >
             {loadingConfig ? <Loader2 className="animate-spin" size={16} /> : <Code2 size={16} />}
             Task Def
           </button>
           
-          <button className="button button-danger" style={styles.btnFull} onClick={handleRestart} disabled={restarting}>
+          <button 
+            className="button button-danger" 
+            style={styles.btnDanger} 
+            onClick={() => handleManage('restart')} 
+            disabled={restarting}
+          >
             {restarting ? <Loader2 className="animate-spin" size={16} /> : <RotateCw size={16} />}
             Restart
           </button>
+
+          <div style={styles.controlGroup}>
+            <button 
+              className={`button ${isStopped ? 'button-primary' : 'button-secondary'}`}
+              style={{ ...styles.controlBtn, opacity: isStopped ? 1 : 0.6 }}
+              onClick={() => handleManage('start')}
+              disabled={restarting || isRunning || isPending}
+              title="Start Service"
+            >
+              <Play size={14} fill={isStopped ? "currentColor" : "none"} />
+            </button>
+            <button 
+              className={`button ${isRunning || isPending ? 'button-danger' : 'button-secondary'}`}
+              style={{ ...styles.controlBtn, opacity: (isRunning || isPending) ? 1 : 0.6 }}
+              onClick={() => handleManage('stop')}
+              disabled={restarting || isStopped}
+              title="Stop Service"
+            >
+              <Square size={14} fill={(isRunning || isPending) ? "currentColor" : "none"} />
+            </button>
+          </div>
         </div>
       </div>
 
       {showModal && (
         <TaskDefModal 
           serviceName={service.serviceName} 
-          initialTaskDef={taskDef} 
+          taskDefs={taskDefs} 
           onClose={() => setShowModal(false)}
+          onDeploy={() => onActionComplete()}
         />
       )}
     </>
@@ -193,9 +236,26 @@ const styles = {
     display: 'flex',
     gap: '12px',
   },
-  btnFull: {
-    flex: 1,
-    padding: '8px 4px',
+  btnSecondary: {
+    padding: '8px 12px',
     fontSize: '13px',
+    flex: 1.5,
+  },
+  btnDanger: {
+    padding: '8px 12px',
+    fontSize: '13px',
+    flex: 1.5,
+  },
+  controlGroup: {
+    display: 'flex',
+    gap: '4px',
+    flex: 1,
+  },
+  controlBtn: {
+    flex: 1,
+    padding: '8px 0',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   }
 };

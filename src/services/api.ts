@@ -29,6 +29,10 @@ export interface ServiceStatus {
 
 export interface TaskDefinition {
   family: string;
+  revision: number;
+  taskDefinitionArn: string;
+  registeredAt: string;
+  isCurrent?: boolean;
   containerDefinitions: any[];
   cpu: string;
   memory: string;
@@ -120,11 +124,11 @@ export async function getServicesStatus(): Promise<ServiceStatus[]> {
 }
 
 /**
- * 5. Get Task Definition for a service
+ * 5. Get Task Definitions for a service
  */
-export async function getTaskDefinition(serviceName: string): Promise<TaskDefinition> {
+export async function getTaskDefinition(serviceName: string): Promise<TaskDefinition[]> {
   const response = await authFetch(`${API_BASE_URL}/task-definition?serviceName=${encodeURIComponent(serviceName)}`);
-  if (!response.ok) throw new Error(`Failed to fetch task definition for ${serviceName}`);
+  if (!response.ok) throw new Error(`Failed to fetch task definitions for ${serviceName}`);
   return response.json();
 }
 
@@ -140,14 +144,18 @@ export async function updateTaskDefinition(serviceName: string, newTaskDef: Task
 }
 
 /**
- * 7. Restart ECS Service with latest task def
+ * 7. Manage ECS Service (Start/Stop/Restart)
  */
-export async function restartService(serviceName: string): Promise<void> {
+export async function manageService(
+  serviceName: string, 
+  action: 'restart' | 'start' | 'stop' = 'restart', 
+  taskDefinition?: string
+): Promise<void> {
   const response = await authFetch(`${API_BASE_URL}/restart`, {
     method: 'POST',
-    body: JSON.stringify({ serviceName }),
+    body: JSON.stringify({ serviceName, action, taskDefinition }),
   });
-  if (!response.ok) throw new Error(`Failed to restart ${serviceName}`);
+  if (!response.ok) throw new Error(`Failed to ${action} ${serviceName}`);
 }
 
 /**

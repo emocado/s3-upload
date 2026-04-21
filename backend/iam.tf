@@ -66,7 +66,7 @@ resource "aws_iam_role_policy" "get_task_def_ecs" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Action   = ["ecs:DescribeServices", "ecs:DescribeTaskDefinition"]
+      Action   = ["ecs:DescribeServices", "ecs:DescribeTaskDefinition", "ecs:ListTaskDefinitions"]
       Effect   = "Allow"
       Resource = "*"
     }]
@@ -88,6 +88,12 @@ resource "aws_iam_role_policy" "update_task_def_ecs" {
       Action   = ["ecs:RegisterTaskDefinition"]
       Effect   = "Allow"
       Resource = "*"
+    },{
+      Action   = [
+          "iam:PassRole",
+        ]
+      Effect   = "Allow"
+      Resource = "*"
     }]
   })
 }
@@ -105,6 +111,12 @@ resource "aws_iam_role_policy" "restart_service_ecs" {
     Version = "2012-10-17"
     Statement = [{
       Action   = ["ecs:UpdateService"]
+      Effect   = "Allow"
+      Resource = "*"
+    },{
+      Action   = [
+          "iam:PassRole",
+        ]
       Effect   = "Allow"
       Resource = "*"
     }]

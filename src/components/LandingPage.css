@@ -79,7 +79,7 @@
 .hero-subtitle {
   font-size: 1.125rem;
   color: #94a3b8;
-  max-width: 600px;
+  max-width: 700px;
   margin: 0 auto;
   line-height: 1.6;
 }
@@ -127,8 +127,17 @@
   transform: scale(1.1);
 }
 
-.blue-icon { background-color: rgba(37, 99, 235, 0.2); color: #60a5fa; border-color: rgba(59, 130, 246, 0.2); }
-.slate-icon { background-color: rgba(71, 85, 105, 0.2); color: #94a3b8; border-color: rgba(148, 163, 184, 0.2); }
+.blue-icon {
+  background-color: rgba(37, 99, 235, 0.2);
+  color: #60a5fa;
+  border-color: rgba(59, 130, 246, 0.2);
+}
+
+.slate-icon {
+  background-color: rgba(71, 85, 105, 0.2);
+  color: #94a3b8;
+  border-color: rgba(148, 163, 184, 0.2);
+}
 
 .card-title {
   font-size: 1.5rem;
@@ -162,7 +171,9 @@
   transition: color 0.2s;
 }
 
-.back-link:hover { color: #fff; }
+.back-link:hover {
+  color: #fff;
+}
 
 .form-header {
   display: flex;
@@ -218,37 +229,38 @@
 .env-selector {
   margin-bottom: 48px;
   width: 100%;
-  max-width: 500px;
-  padding: 20px;
+  max-width: 620px;
+  padding: 32px;
   background: rgba(255, 255, 255, 0.02);
-  border-radius: 20px;
+  border-radius: 24px;
   border: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .env-options {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-}
-
-@media (min-width: 480px) {
-  .env-options {
-    grid-template-columns: repeat(4, 1fr);
-  }
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  width: 100%;
 }
 
 .env-tab {
-  padding: 10px 12px;
-  border-radius: 12px;
+  padding: 12px 20px;
+  border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.03);
   color: #94a3b8;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  min-width: 100px;
 }
 
 .env-tab:hover {
@@ -273,6 +285,7 @@
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);

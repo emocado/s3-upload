@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
 import { useAuth } from 'react-oidc-context';
-import { Shield, Smartphone, Terminal, ArrowRight, Loader2, KeyRound } from 'lucide-react';
+import { Shield, Smartphone, Terminal, ArrowRight, Loader2, KeyRound, Globe } from 'lucide-react';
 import { authenticateWithClientCredentials, setAccessToken } from '../services/api';
+import { getCurrentEnv, getAllEnvs, setCurrentEnv } from '../config/environments';
 import './LandingPage.css';
 
 export const LandingPage: React.FC<{ onAuthSuccess: () => void }> = ({ onAuthSuccess }) => {
   const auth = useAuth();
+  const currentEnv = getCurrentEnv();
+  const allEnvs = getAllEnvs();
+
   const [showDevLogin, setShowDevLogin] = useState(false);
   const [clientId, setClientId] = useState('');
   const [clientSecret, setClientSecret] = useState('');
@@ -25,6 +29,11 @@ export const LandingPage: React.FC<{ onAuthSuccess: () => void }> = ({ onAuthSuc
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleEnvChange = (envId: string) => {
+    setCurrentEnv(envId);
+    window.location.reload();
   };
 
   const startStandardLogin = () => {
@@ -47,7 +56,7 @@ export const LandingPage: React.FC<{ onAuthSuccess: () => void }> = ({ onAuthSuc
 
       <main className="landing-main animate-fade-in">
         {/* Hero Section */}
-        <div className="hero-section">
+        <div className="hero-section" style={{ marginBottom: '40px' }}>
           <div className="badge-tag">
             <Shield size={14} />
             SECURE MANAGEMENT CONSOLE
@@ -59,6 +68,27 @@ export const LandingPage: React.FC<{ onAuthSuccess: () => void }> = ({ onAuthSuc
             Manage your Amazon ECS clusters, task definitions, and deployments with enterprise-grade security and a streamlined developer experience.
           </p>
         </div>
+
+        {/* Environment Selector */}
+        {!showDevLogin && (
+          <div className="env-selector animate-slide-up">
+            <div className="flex items-center justify-center gap-2 mb-3">
+              <Globe size={14} className="text-blue-400" />
+              <label className="field-label" style={{ marginBottom: 0 }}>Target Environment</label>
+            </div>
+            <div className="env-options">
+              {allEnvs.map(env => (
+                <button
+                  key={env.id}
+                  className={`env-tab ${currentEnv.id === env.id ? 'active' : ''}`}
+                  onClick={() => handleEnvChange(env.id)}
+                >
+                  {env.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Login Cards */}
         {!showDevLogin ? (
@@ -97,7 +127,7 @@ export const LandingPage: React.FC<{ onAuthSuccess: () => void }> = ({ onAuthSuc
             <button onClick={() => setShowDevLogin(false)} className="back-link">
               <ArrowRight size={16} style={{ transform: 'rotate(180deg)' }} /> Back to methods
             </button>
-            
+
             <div className="glass-panel" style={{ padding: '32px' }}>
               <div className="form-header">
                 <KeyRound className="text-blue-400" size={24} color="var(--accent-primary)" />
@@ -106,11 +136,11 @@ export const LandingPage: React.FC<{ onAuthSuccess: () => void }> = ({ onAuthSuc
 
               <form onSubmit={handleDevLogin} className="form-fields">
                 {error && <div className="error-msg">{error}</div>}
-                
+
                 <div className="field-group">
                   <label className="field-label">Client ID</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     className="input"
                     value={clientId}
                     onChange={e => setClientId(e.target.value)}
@@ -121,8 +151,8 @@ export const LandingPage: React.FC<{ onAuthSuccess: () => void }> = ({ onAuthSuc
 
                 <div className="field-group">
                   <label className="field-label">Client Secret</label>
-                  <input 
-                    type="password" 
+                  <input
+                    type="password"
                     className="input"
                     value={clientSecret}
                     onChange={e => setClientSecret(e.target.value)}
@@ -131,8 +161,8 @@ export const LandingPage: React.FC<{ onAuthSuccess: () => void }> = ({ onAuthSuc
                   />
                 </div>
 
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   className="button button-primary"
                   style={{ width: '100%', padding: '12px', marginTop: '8px' }}
                   disabled={loading}

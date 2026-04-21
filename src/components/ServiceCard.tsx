@@ -149,6 +149,13 @@ const styles = {
     borderTop: '1px solid var(--border-subtle)',
     borderBottom: '1px solid var(--border-subtle)',
   },
+  label: {
+    fontSize: '11px',
+    fontWeight: 700,
+    color: 'var(--text-secondary)',
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.05em',
+  },
   historyHeader: {
     display: 'flex',
     alignItems: 'center',

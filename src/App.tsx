@@ -4,12 +4,14 @@ import { useAuth } from 'react-oidc-context';
 import { LandingPage } from './components/LandingPage';
 import { Uploader } from './components/Uploader';
 import { ServiceCard } from './components/ServiceCard';
-import { getServicesStatus, getAccessToken, setAccessToken } from './services/api';
+import { getServicesStatus, setAccessToken } from './services/api';
+import { getCurrentEnv } from './config/environments';
 import type { ServiceStatus } from './services/api';
 import './App.css';
 
 function App() {
   const auth = useAuth();
+  const currentEnv = getCurrentEnv();
   const [manualAuthenticated, setManualAuthenticated] = useState(false);
   const [services, setServices] = useState<ServiceStatus[]>([]);
   const [loadingServices, setLoadingServices] = useState(false);
@@ -59,7 +61,20 @@ function App() {
         <div className="header-content">
           <div className="flex items-center gap-4">
             <LayoutDashboard color="var(--accent-primary)" size={28} />
-            <h1>ECS Dashboard</h1>
+            <div className="flex flex-col">
+              <h1>ECS Dashboard</h1>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold text-blue-400 bg-blue-400/10 px-1.5 py-0.5 rounded border border-blue-400/20 uppercase tracking-wider">
+                  {currentEnv.name}
+                </span>
+                <button 
+                  onClick={() => { handleLogout(); window.location.reload(); }} 
+                  className="text-[10px] text-slate-500 hover:text-slate-300 underline cursor-pointer"
+                >
+                  Switch
+                </button>
+              </div>
+            </div>
           </div>
           <button 
             className="button button-secondary flex items-center justify-center gap-2" 

@@ -3,13 +3,16 @@ import { createRoot } from 'react-dom/client'
 import { AuthProvider } from 'react-oidc-context'
 import './index.css'
 import App from './App.tsx'
+import { getCurrentEnv } from './config/environments'
+
+const env = getCurrentEnv();
 
 const oidcConfig = {
-  authority: import.meta.env.VITE_COGNITO_AUTHORITY,
-  client_id: import.meta.env.VITE_COGNITO_CLIENT_ID,
-  redirect_uri: import.meta.env.VITE_APP_URL,
+  authority: env.cognitoAuthority,
+  client_id: env.cognitoClientId,
+  redirect_uri: env.appUrl,
   response_type: "code",
-  scope: "openid email profile ecs-api/all",
+  scope: `openid email profile ${import.meta.env.VITE_API_SCOPE}`,
 };
 
 createRoot(document.getElementById('root')!).render(

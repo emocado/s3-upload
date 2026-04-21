@@ -3,9 +3,12 @@
  * Handlers for authentication and simulated ECS/S3 backend endpoints.
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+import { getCurrentEnv } from '../config/environments';
+
+const env = getCurrentEnv();
+const API_BASE_URL = env.apiBaseUrl;
 // Example: https://ecs-dash-xxxxxx.auth.ap-southeast-1.amazoncognito.com
-const COGNITO_DOMAIN_URL = import.meta.env.VITE_COGNITO_DOMAIN_URL;
+const COGNITO_DOMAIN_URL = env.cognitoDomain;
 
 // Define our types
 export interface TokenResponse {

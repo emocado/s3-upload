@@ -5,11 +5,11 @@ import './index.css'
 import App from './App.tsx'
 
 const oidcConfig = {
-  authority: "https://cognito-idp.ap-southeast-1.amazonaws.com/ap-southeast-1_zWAM10I87",
-  client_id: "69d2bbk3i6ad3ppekfgg41lj51",
-  redirect_uri: "http://localhost:5173",
+  authority: import.meta.env.VITE_COGNITO_AUTHORITY,
+  client_id: import.meta.env.VITE_COGNITO_CLIENT_ID,
+  redirect_uri: import.meta.env.VITE_APP_URL,
   response_type: "code",
-  scope: "openid email profile",
+  scope: "openid email profile ecs-api/all",
 };
 
 createRoot(document.getElementById('root')!).render(

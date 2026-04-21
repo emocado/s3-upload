@@ -63,8 +63,8 @@ resource "aws_cognito_user_pool_client" "web_client" {
   generate_secret                      = false # False for frontend security (PKCE)
   allowed_oauth_flows_user_pool_client = true
   allowed_oauth_flows                  = ["code"]
-  allowed_oauth_scopes                 = ["openid", "email", "profile"]
-  callback_urls                        = ["http://localhost:5173"]
+  allowed_oauth_scopes                 = ["openid", "email", "profile", "${aws_cognito_resource_server.api.identifier}/all"]
+  callback_urls                        = ["http://localhost:7777"]
   supported_identity_providers         = ["COGNITO"]
 }
 

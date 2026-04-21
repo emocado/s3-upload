@@ -1,0 +1,22 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudFormation template to create Service Linked Role'
+
+Resources:
+  # EcsServiceLinkedRole:
+  # Type: 'AWS::IAM::ServiceLinkedRole'
+  # Properties:
+  #   AWSServiceName: ecs.amazonaws.com
+  #   Description: 'Policy to enable Amazon ECS to manage your EC2 instances and related resources.'
+
+  # ApiGatewayServiceLinkedRole:
+  # Type: 'AWS::IAM::ServiceLinkedRole'
+  # Properties:
+  #   AWSServiceName: ops.apigateway.amazonaws.com
+  #   Description: 'The Service Linked Role is used by Amazon API Gateway.'
+  
+  # Create the ECS Service Linked Role (required for Fargate and other ECS features)
+  AutoScalingServiceLinkedRole:
+    Type: 'AWS::IAM::ServiceLinkedRole'
+    Properties:
+      AWSServiceName: autoscaling.amazonaws.com
+      Description: 'Service-linked role for EC2 Auto Scaling'

@@ -1,0 +1,48 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudFormation template for Amazon MSK Serverless Cluster'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: ecs-dashboard
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: The VPC where MSK Serverless will be deployed
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: At least two Subnet IDs in different Availability Zones
+
+Resources:
+  # 1. Security Group for MSK Serverless
+  MskSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow traffic to MSK Serverless cluster
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 9098 # MSK Serverless uses port 9098 for IAM Authentication
+          ToPort: 9098
+          CidrIp: 0.0.0.0/0 # Restricted to VPC in production
+
+  # 2. MSK Serverless Cluster
+  MskServerlessCluster:
+    Type: AWS::MSK::ServerlessCluster
+    Properties:
+      ClusterName: !Sub "${ProjectName}-msk-serverless"
+      VpcConfigurations:
+        - SecurityGroups:
+            - !Ref MskSecurityGroup
+          Subnets: !Ref SubnetIds
+      ClientAuthentication:
+        Sasl:
+          Iam:
+            Enabled: true
+
+Outputs:
+  ClusterArn:
+    Description: MSK Serverless Cluster ARN
+    Value: !Ref MskServerlessCluster
+  MskSecurityGroupId:
+    Description: Security Group ID for the MSK Cluster
+    Value: !Ref MskSecurityGroup

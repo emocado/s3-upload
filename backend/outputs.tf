@@ -39,3 +39,8 @@ output "web_client_id" {
 output "cognito_issuer" {
   value = "https://cognito-idp.${var.aws_region}.amazonaws.com/${aws_cognito_user_pool.pool.id}"
 }
+
+output "iot_endpoint" {
+  value       = data.aws_iot_endpoint.data.endpoint_address
+  description = "The AWS IoT Core Data-ATS endpoint"
+}

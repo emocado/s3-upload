@@ -1,44 +1,75 @@
 import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { UploadCloud, CheckCircle2, FileArchive, Info, Folder, Terminal, ArrowRight, ChevronDown } from 'lucide-react';
+import { UploadCloud, CheckCircle2, FileArchive, Info, Folder, Terminal, ArrowRight, Loader2, X, AlertCircle } from 'lucide-react';
 import { getPresignedUrl, uploadToS3 } from '../services/api';
 
-const MANAGERS = Array.from({ length: 8 }, (_, i) => `manager-${i + 1}`);
-const FOLDERS = ['filestore', ...MANAGERS];
+interface FileUploadState {
+  file: File;
+  folder: string;
+  progress: number;
+  status: 'idle' | 'uploading' | 'success' | 'error';
+  error?: string;
+}
+
+const getFolderForFile = (filename: string): string => {
+  const match = filename.match(/manager-(\d+)/i);
+  if (match) {
+    const num = parseInt(match[1]);
+    if (num >= 1 && num <= 8) return `manager-${num}`;
+  }
+  return 'filestore';
+};
 
 export const Uploader: React.FC = () => {
-  const [file, setFile] = useState<File | null>(null);
-  const [selectedFolder, setSelectedFolder] = useState<string>(FOLDERS[0]);
-  const [status, setStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
-  const [progress, setProgress] = useState(0);
+  const [uploads, setUploads] = useState<FileUploadState[]>([]);
+  const [isOverallUploading, setIsOverallUploading] = useState(false);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
-    if (acceptedFiles.length > 0) {
-      setFile(acceptedFiles[0]);
-      setStatus('idle');
-      setProgress(0);
-    }
+    const newUploads: FileUploadState[] = acceptedFiles.map(file => ({
+      file,
+      folder: getFolderForFile(file.name),
+      progress: 0,
+      status: 'idle'
+    }));
+    setUploads(prev => [...prev, ...newUploads]);
   }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    maxFiles: 1
+    onDrop
   });
 
-  const handleUpload = async () => {
-    if (!file) return;
-    setStatus('uploading');
-
-    try {
-      const { uploadUrl } = await getPresignedUrl(file.name, selectedFolder);
-      await uploadToS3(uploadUrl, file, (pct) => {
-        setProgress(pct);
-      });
-      setStatus('success');
-    } catch (error) {
-      setStatus('error');
-    }
+  const removeFile = (index: number) => {
+    if (isOverallUploading) return;
+    setUploads(prev => prev.filter((_, i) => i !== index));
   };
+
+  const handleUpload = async () => {
+    if (uploads.length === 0 || isOverallUploading) return;
+    setIsOverallUploading(true);
+
+    const uploadPromises = uploads.map(async (upload, index) => {
+      if (upload.status === 'success') return;
+
+      // Update status to uploading
+      setUploads(prev => prev.map((u, i) => i === index ? { ...u, status: 'uploading' } : u));
+
+      try {
+        const { uploadUrl } = await getPresignedUrl(upload.file.name, upload.folder);
+        await uploadToS3(uploadUrl, upload.file, (pct) => {
+          setUploads(prev => prev.map((u, i) => i === index ? { ...u, progress: pct } : u));
+        });
+        setUploads(prev => prev.map((u, i) => i === index ? { ...u, status: 'success' } : u));
+      } catch (error) {
+        setUploads(prev => prev.map((u, i) => i === index ? { ...u, status: 'error', error: 'Upload failed' } : u));
+      }
+    });
+
+    await Promise.all(uploadPromises);
+    setIsOverallUploading(false);
+  };
+
+  const hasPendingUploads = uploads.some(u => u.status === 'idle' || u.status === 'error');
+  const allSuccessful = uploads.length > 0 && uploads.every(u => u.status === 'success');
 
   return (
     <div style={styles.outerContainer}>
@@ -50,7 +81,7 @@ export const Uploader: React.FC = () => {
           </div>
           <h2 style={styles.panelTitle}>Deployment Guide</h2>
         </div>
-
+        
         <div style={styles.instructionSteps}>
           <div style={styles.step}>
             <div style={styles.stepNumber}>1</div>
@@ -62,12 +93,12 @@ export const Uploader: React.FC = () => {
               </div>
             </div>
           </div>
-
+          
           <div style={styles.step}>
             <div style={styles.stepNumber}>2</div>
             <p style={styles.stepText}>Follow the prompts to select your target <strong>Environment</strong> and <strong>Manager</strong>.</p>
           </div>
-
+          
           <div style={styles.step}>
             <div style={styles.stepNumber}>3</div>
             <p style={styles.stepText}>The script will run <code>bootJar</code> and <code>docker build</code>, outputting the image to <code>build/{"{env}"}/</code>.</p>
@@ -75,13 +106,13 @@ export const Uploader: React.FC = () => {
 
           <div style={styles.step}>
             <div style={styles.stepNumber}>4</div>
-            <p style={styles.stepText}>Select the target folder below and upload your <code>.tar</code> file to trigger deployment.</p>
+            <p style={styles.stepText}>Upload your <code>.tar</code> file(s) below. The uploader will automatically detect the target manager based on the filename.</p>
           </div>
         </div>
 
         <div style={styles.infoBadge}>
           <Folder size={14} style={{ marginRight: '6px' }} />
-          <span>Use <strong>filestore</strong> for general storage purposes.</span>
+          <span>Files not named <code>manager-N</code> will go to <strong>filestore</strong>.</span>
         </div>
       </div>
 
@@ -91,98 +122,108 @@ export const Uploader: React.FC = () => {
           <div style={styles.iconCircle}>
             <UploadCloud size={20} color="var(--accent-primary)" />
           </div>
-          <h2 style={styles.panelTitle}>Upload to S3</h2>
+          <h2 style={styles.panelTitle}>Smart S3 Uploader</h2>
         </div>
 
-        <div style={styles.formGroup}>
-          <label style={styles.label}>Target Folder</label>
-          <div style={styles.selectWrapper}>
-            <select
-              value={selectedFolder}
-              onChange={(e) => setSelectedFolder(e.target.value)}
-              className="custom-select"
-            >
-              {FOLDERS.map(f => (
-                <option key={f} value={f}>{f}</option>
-              ))}
-            </select>
-            <ChevronDown size={16} style={styles.selectIcon} />
+        <div 
+          {...getRootProps()} 
+          style={{
+            ...styles.dropzone,
+            borderColor: isDragActive ? 'var(--accent-primary)' : 'var(--border-subtle)',
+            backgroundColor: isDragActive ? 'rgba(59, 130, 246, 0.05)' : 'rgba(0,0,0,0.1)',
+            marginBottom: uploads.length > 0 ? '24px' : '0'
+          }}
+        >
+          <input {...getInputProps()} />
+          <div style={styles.dropzoneContent}>
+            <div style={styles.uploadIconWrapper}>
+              <UploadCloud size={32} color="var(--accent-primary)" />
+            </div>
+            <p style={styles.dropText}>
+              {isDragActive ? 'Drop your files here' : 'Drag & drop multiple files or click to browse'}
+            </p>
+            <p style={styles.dropSubtext}>Smart routing based on manager-{1}-8 naming convention</p>
           </div>
         </div>
 
-        {!file || status === 'success' ? (
-          <div
-            {...getRootProps()}
-            style={{
-              ...styles.dropzone,
-              borderColor: isDragActive ? 'var(--accent-primary)' : 'var(--border-subtle)',
-              backgroundColor: isDragActive ? 'rgba(59, 130, 246, 0.05)' : 'rgba(0,0,0,0.1)',
-            }}
-          >
-            <input {...getInputProps()} />
-            <div style={styles.dropzoneContent}>
-              <div style={styles.uploadIconWrapper}>
-                <UploadCloud size={32} color="var(--accent-primary)" />
-              </div>
-              <p style={styles.dropText}>
-                {isDragActive ? 'Drop your file here' : 'Drag & drop your artifact or click to browse'}
-              </p>
-              <p style={styles.dropSubtext}>Supports .tar, .zip, and any deployment assets</p>
-            </div>
-          </div>
-        ) : (
-          <div style={styles.fileCard}>
-            <div style={styles.fileInfo}>
-              <div style={styles.fileIconWrapper}>
-                <FileArchive size={24} color="var(--accent-primary)" />
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={styles.fileName}>{file.name}</div>
-                <div style={styles.fileSize}>
-                  {(file.size / (1024 * 1024)).toFixed(2)} MB • Uploading to <strong>{selectedFolder}</strong>
+        {uploads.length > 0 && (
+          <div style={styles.fileList}>
+            {uploads.map((upload, idx) => (
+              <div key={`${upload.file.name}-${idx}`} style={styles.fileCard}>
+                <div style={styles.fileInfo}>
+                  <div style={styles.fileIconWrapper}>
+                    <FileArchive size={20} color="var(--accent-primary)" />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={styles.fileName}>{upload.file.name}</div>
+                    <div style={styles.fileSize}>
+                      {(upload.file.size / (1024 * 1024)).toFixed(2)} MB • Target: <strong>{upload.folder}</strong>
+                    </div>
+                  </div>
+                  {upload.status === 'idle' && !isOverallUploading && (
+                    <button style={styles.removeButton} onClick={() => removeFile(idx)}>
+                      <X size={16} />
+                    </button>
+                  )}
+                  {upload.status === 'uploading' && <Loader2 className="animate-spin" size={16} color="var(--accent-primary)" />}
+                  {upload.status === 'success' && <CheckCircle2 size={18} color="var(--success)" />}
+                  {upload.status === 'error' && <AlertCircle size={18} color="var(--danger)" />}
                 </div>
-              </div>
-            </div>
 
-            {status === 'idle' && (
-              <button className="button button-primary" onClick={handleUpload} style={styles.uploadButton}>
-                <span>Initiate Upload</span>
-                <ArrowRight size={16} />
-              </button>
-            )}
-
-            {status === 'uploading' && (
-              <div style={styles.progressContainer}>
-                <div style={styles.progressHeader}>
-                  <span style={styles.progressText}>Pushing to S3...</span>
-                  <span style={styles.progressText}>{progress}%</span>
-                </div>
-                <div style={styles.progressBarBg}>
-                  <div style={{ ...styles.progressBarFill, width: `${progress}%` }} />
-                </div>
+                {upload.status === 'uploading' && (
+                  <div style={styles.progressContainer}>
+                    <div style={styles.progressBarBg}>
+                      <div style={{ ...styles.progressBarFill, width: `${upload.progress}%` }} />
+                    </div>
+                  </div>
+                )}
+                
+                {upload.status === 'error' && (
+                  <div style={styles.fileErrorMessage}>{upload.error}</div>
+                )}
               </div>
-            )}
-
-            {status === 'error' && (
-              <div style={styles.errorMessage}>
-                <Info size={16} />
-                <span>Upload failed. Please check your connection and try again.</span>
-              </div>
-            )}
+            ))}
           </div>
         )}
 
-        {status === 'success' && (
+        {hasPendingUploads && (
+          <button 
+            className="button button-primary" 
+            onClick={handleUpload} 
+            disabled={isOverallUploading}
+            style={styles.uploadButton}
+          >
+            {isOverallUploading ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                <span>Uploading {uploads.filter(u => u.status === 'uploading').length} of {uploads.filter(u => u.status !== 'success').length}...</span>
+              </>
+            ) : (
+              <>
+                <span>Start Uploading {uploads.filter(u => u.status !== 'success').length} File(s)</span>
+                <ArrowRight size={16} />
+              </>
+            )}
+          </button>
+        )}
+
+        {allSuccessful && (
           <div style={styles.successMessage} className="animate-fade-in">
             <div style={styles.successIconWrapper}>
               <CheckCircle2 color="var(--success)" size={20} />
             </div>
             <div>
-              <div style={{ fontWeight: 600 }}>Upload Successful</div>
+              <div style={{ fontWeight: 600 }}>All Uploads Completed</div>
               <div style={{ fontSize: '13px', opacity: 0.8 }}>
-                File successfully placed in <code>{selectedFolder}/</code>.
-                {selectedFolder !== 'filestore' && " Deployment pipeline has been triggered."}
+                All {uploads.length} files have been successfully routed to their respective S3 folders.
               </div>
+              <button 
+                className="link-button" 
+                style={{ marginTop: '8px', fontSize: '12px' }}
+                onClick={() => setUploads([])}
+              >
+                Clear list
+              </button>
             </div>
           </div>
         )}
@@ -213,7 +254,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '16px',
-    marginBottom: '8px',
+    marginBottom: '24px',
   },
   iconCircle: {
     width: '40px',
@@ -283,34 +324,10 @@ const styles = {
     alignItems: 'center',
     border: '1px solid rgba(59, 130, 246, 0.1)',
   },
-  formGroup: {
-    marginBottom: '24px',
-    marginTop: '16px',
-  },
-  label: {
-    display: 'block',
-    fontSize: '13px',
-    fontWeight: 600,
-    color: 'var(--text-secondary)',
-    marginBottom: '8px',
-    textTransform: 'uppercase' as const,
-    letterSpacing: '0.05em',
-  },
-  selectWrapper: {
-    position: 'relative' as const,
-  },
-  selectIcon: {
-    position: 'absolute' as const,
-    right: '12px',
-    top: '50%',
-    transform: 'translateY(-50%)',
-    pointerEvents: 'none' as const,
-    color: 'var(--text-secondary)',
-  },
   dropzone: {
     border: '2px dashed var(--border-subtle)',
     borderRadius: '16px',
-    padding: '40px 24px',
+    padding: '32px 24px',
     textAlign: 'center' as const,
     cursor: 'pointer',
     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -321,81 +338,93 @@ const styles = {
     alignItems: 'center',
   },
   uploadIconWrapper: {
-    width: '64px',
-    height: '64px',
+    width: '48px',
+    height: '48px',
     borderRadius: '50%',
     backgroundColor: 'rgba(59, 130, 246, 0.1)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: '20px',
+    marginBottom: '16px',
   },
   dropText: {
     color: 'var(--text-primary)',
-    fontSize: '16px',
+    fontSize: '15px',
     fontWeight: 500,
-    margin: '0 0 8px 0',
+    margin: '0 0 4px 0',
   },
   dropSubtext: {
-    fontSize: '13px',
+    fontSize: '12px',
     color: 'var(--text-secondary)',
     margin: 0,
   },
+  fileList: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '12px',
+    marginBottom: '24px',
+    maxHeight: '400px',
+    overflowY: 'auto' as const,
+    paddingRight: '4px',
+  },
   fileCard: {
     backgroundColor: 'rgba(0,0,0,0.2)',
-    padding: '20px',
-    borderRadius: '14px',
+    padding: '14px',
+    borderRadius: '10px',
     border: '1px solid var(--border-subtle)',
     display: 'flex',
     flexDirection: 'column' as const,
-    gap: '20px',
+    gap: '10px',
   },
   fileInfo: {
     display: 'flex',
     alignItems: 'center',
-    gap: '16px',
+    gap: '12px',
   },
   fileIconWrapper: {
-    padding: '12px',
+    padding: '8px',
     backgroundColor: 'rgba(59, 130, 246, 0.1)',
-    borderRadius: '10px',
+    borderRadius: '8px',
   },
   fileName: {
-    fontSize: '15px',
+    fontSize: '14px',
     fontWeight: 600,
-    marginBottom: '4px',
+    wordBreak: 'break-all' as const,
   },
   fileSize: {
-    fontSize: '13px',
+    fontSize: '11px',
     color: 'var(--text-secondary)',
+    marginTop: '2px',
+  },
+  removeButton: {
+    background: 'none',
+    border: 'none',
+    color: 'var(--text-secondary)',
+    cursor: 'pointer',
+    padding: '4px',
+    borderRadius: '4px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'background 0.2s',
   },
   uploadButton: {
+    width: '100%',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     gap: '10px',
-    padding: '12px',
+    padding: '14px',
     fontSize: '15px',
     fontWeight: 600,
   },
   progressContainer: {
     width: '100%',
   },
-  progressHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    marginBottom: '8px',
-  },
-  progressText: {
-    fontSize: '12px',
-    fontWeight: 600,
-    color: 'var(--text-secondary)',
-    textTransform: 'uppercase' as const,
-  },
   progressBarBg: {
-    height: '8px',
+    height: '4px',
     backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: '4px',
+    borderRadius: '2px',
     overflow: 'hidden',
   },
   progressBarFill: {
@@ -403,18 +432,12 @@ const styles = {
     background: 'linear-gradient(90deg, var(--accent-primary), #60a5fa)',
     transition: 'width 0.3s ease',
   },
-  errorMessage: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
+  fileErrorMessage: {
+    fontSize: '11px',
     color: 'var(--danger)',
-    fontSize: '14px',
-    padding: '12px',
-    backgroundColor: 'rgba(239, 68, 68, 0.05)',
-    borderRadius: '8px',
+    marginTop: '-4px',
   },
   successMessage: {
-    marginTop: '24px',
     padding: '20px',
     backgroundColor: 'rgba(16, 185, 129, 0.08)',
     border: '1px solid rgba(16, 185, 129, 0.2)',

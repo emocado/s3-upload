@@ -79,8 +79,9 @@ export async function authenticateWithClientCredentials(clientId: string, client
 /**
  * 2. Get S3 Presigned URL from API Gateway
  */
-export async function getPresignedUrl(filename: string): Promise<{ uploadUrl: string }> {
-  const response = await authFetch(`${API_BASE_URL}/presigned-url?filename=${encodeURIComponent(filename)}`);
+export async function getPresignedUrl(filename: string, folder?: string): Promise<{ uploadUrl: string }> {
+  const path = folder ? `${folder}/${filename}` : filename;
+  const response = await authFetch(`${API_BASE_URL}/presigned-url?filename=${encodeURIComponent(path)}`);
   if (!response.ok) throw new Error('Failed to get presigned URL');
   return response.json();
 }

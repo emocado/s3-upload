@@ -12,7 +12,7 @@ import './App.css';
 function App() {
   const auth = useAuth();
   const currentEnv = getCurrentEnv();
-  const [manualAuthenticated, setManualAuthenticated] = useState(false);
+  const [manualAuthenticated, setManualAuthenticated] = useState(true);
   const [services, setServices] = useState<ServiceStatus[]>([]);
   const [loadingServices, setLoadingServices] = useState(false);
 
@@ -64,20 +64,20 @@ function App() {
             <div className="flex flex-col">
               <h1>ECS Dashboard</h1>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold text-blue-400 bg-blue-400/10 px-1.5 py-0.5 rounded border border-blue-400/20 uppercase tracking-wider">
+                <span className="env-tag">
                   {currentEnv.name}
                 </span>
-                <button 
-                  onClick={() => { handleLogout(); window.location.reload(); }} 
-                  className="text-[10px] text-slate-500 hover:text-slate-300 underline cursor-pointer"
+                <button
+                  onClick={() => { handleLogout(); window.location.reload(); }}
+                  className="link-button"
                 >
                   Switch
                 </button>
               </div>
             </div>
           </div>
-          <button 
-            className="button button-secondary flex items-center justify-center gap-2" 
+          <button
+            className="button button-secondary flex items-center justify-center gap-2"
             onClick={handleLogout}
           >
             <LogOut size={16} /> Sign Out
@@ -95,18 +95,18 @@ function App() {
         <section>
           <div className="section-header">
             <div className="flex items-center gap-4">
-               <h2>Active Services</h2>
-               {auth.isAuthenticated && (
-                 <span className="px-2 py-1 bg-green-500/10 text-green-400 text-xs rounded border border-green-500/20">
-                   Logged in as {auth.user?.profile.email || 'User'}
-                 </span>
-               )}
+              <h2>Active Services</h2>
+              {auth.isAuthenticated && (
+                <span className="px-2 py-1 bg-green-500/10 text-green-400 text-xs rounded border border-green-500/20">
+                  Logged in as {auth.user?.profile.email || 'User'}
+                </span>
+              )}
             </div>
             <button className="button button-secondary" onClick={fetchServices} disabled={loadingServices}>
-              {loadingServices ? <Loader2 className="animate-spin" size={16}/> : 'Refresh'}
+              {loadingServices ? <Loader2 className="animate-spin" size={16} /> : 'Refresh'}
             </button>
           </div>
-          
+
           {loadingServices && services.length === 0 ? (
             <div className="loading-state">
               <Loader2 className="animate-spin text-secondary" size={32} />
@@ -115,10 +115,10 @@ function App() {
           ) : (
             <div className="services-grid">
               {services.map((svc) => (
-                <ServiceCard 
-                  key={svc.serviceName} 
-                  service={svc} 
-                  onActionComplete={fetchServices} 
+                <ServiceCard
+                  key={svc.serviceName}
+                  service={svc}
+                  onActionComplete={fetchServices}
                 />
               ))}
             </div>

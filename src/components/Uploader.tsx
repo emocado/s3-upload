@@ -12,6 +12,9 @@ interface FileUploadState {
 }
 
 const getFolderForFile = (filename: string): string => {
+  if (filename === 'react-app.zip') return 'deploy';
+  if (filename === 'new-app-create.zip') return 'deploy/new-app-create';
+
   const match = filename.match(/manager-(\d+)/i);
   if (match) {
     const num = parseInt(match[1]);
@@ -83,30 +86,38 @@ export const Uploader: React.FC = () => {
         </div>
         
         <div style={styles.instructionSteps}>
+          {/* Backend Section */}
           <div style={styles.step}>
             <div style={styles.stepNumber}>1</div>
             <div>
-              <p style={styles.stepText}>Navigate to the backend repository root and execute the build script.</p>
+              <p style={styles.stepText}><strong>Backend:</strong> Run build script in backend root.</p>
               <div style={styles.codeBlock}>
                 <Terminal size={14} style={{ marginRight: '8px', opacity: 0.7 }} />
                 <code>./docker-build.sh</code>
               </div>
             </div>
           </div>
-          
+
+          {/* Frontend Section */}
           <div style={styles.step}>
             <div style={styles.stepNumber}>2</div>
-            <p style={styles.stepText}>Follow the prompts to select your target <strong>Environment</strong> and <strong>Manager</strong>.</p>
+            <div>
+              <p style={styles.stepText}><strong>Frontend:</strong> Build project and ZIP the distribution folder.</p>
+              <div style={styles.codeBlock}>
+                <Terminal size={14} style={{ marginRight: '8px', opacity: 0.7 }} />
+                <code>npm run build && zip -r react-app.zip dist/</code>
+              </div>
+            </div>
           </div>
           
           <div style={styles.step}>
             <div style={styles.stepNumber}>3</div>
-            <p style={styles.stepText}>The script will run <code>bootJar</code> and <code>docker build</code>, outputting the image to <code>build/{"{env}"}/</code>.</p>
+            <p style={styles.stepText}><strong>Critical:</strong> Naming determines destination. Use <code>react-app.zip</code> for root or <code>new-app-create.zip</code> for subfolder.</p>
           </div>
 
           <div style={styles.step}>
             <div style={styles.stepNumber}>4</div>
-            <p style={styles.stepText}>Upload your <code>.tar</code> file(s) below. The uploader will automatically detect the target manager based on the filename.</p>
+            <p style={styles.stepText}>Upload files below. The uploader automagically routes artifacts based on their names.</p>
           </div>
         </div>
 

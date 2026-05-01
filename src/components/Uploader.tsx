@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { UploadCloud, CheckCircle2, FileArchive, Info, Folder, Terminal, ArrowRight, Loader2, X, AlertCircle } from 'lucide-react';
 import { getPresignedUrl, uploadToS3 } from '../services/api';
+import { getCurrentEnv } from '../config/environments';
 
 interface FileUploadState {
   file: File;
@@ -48,6 +49,13 @@ export const Uploader: React.FC = () => {
 
   const handleUpload = async () => {
     if (uploads.length === 0 || isOverallUploading) return;
+    
+    const currentEnv = getCurrentEnv();
+    if (currentEnv.id === 'prod') {
+      const confirm = window.confirm(`⚠️ ATTENTION: You are about to upload ${uploads.length} file(s) to the PRODUCTION environment.\n\nAre you sure you want to proceed?`);
+      if (!confirm) return;
+    }
+
     setIsOverallUploading(true);
 
     const uploadPromises = uploads.map(async (upload, index) => {
@@ -171,7 +179,7 @@ export const Uploader: React.FC = () => {
                       {(upload.file.size / (1024 * 1024)).toFixed(2)} MB • Target: <strong>{upload.folder}</strong>
                     </div>
                   </div>
-                  {upload.status === 'idle' && !isOverallUploading && (
+                  {(upload.status === 'idle' || upload.status === 'error') && !isOverallUploading && (
                     <button style={styles.removeButton} onClick={() => removeFile(idx)}>
                       <X size={16} />
                     </button>
@@ -202,16 +210,19 @@ export const Uploader: React.FC = () => {
             className="button button-primary" 
             onClick={handleUpload} 
             disabled={isOverallUploading}
-            style={styles.uploadButton}
+            style={{ 
+              ...styles.uploadButton, 
+              backgroundColor: isOverallUploading ? 'var(--text-secondary)' : 'var(--env-color, var(--accent-primary))' 
+            }}
           >
             {isOverallUploading ? (
               <>
                 <Loader2 size={16} className="animate-spin" />
-                <span>Uploading {uploads.filter(u => u.status === 'uploading').length} of {uploads.filter(u => u.status !== 'success').length}...</span>
+                <span>Uploading to {getCurrentEnv().name}...</span>
               </>
             ) : (
               <>
-                <span>Start Uploading {uploads.filter(u => u.status !== 'success').length} File(s)</span>
+                <span>Start Uploading to {getCurrentEnv().name}</span>
                 <ArrowRight size={16} />
               </>
             )}

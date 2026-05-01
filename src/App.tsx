@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { LayoutDashboard, Loader2, LogOut } from 'lucide-react';
+import { LayoutDashboard, Loader2, LogOut, AlertTriangle, ShieldCheck, Settings, Activity } from 'lucide-react';
 import { useAuth } from 'react-oidc-context';
 import { LandingPage } from './components/LandingPage';
 import { Uploader } from './components/Uploader';
@@ -22,6 +22,20 @@ function App() {
       setAccessToken(auth.user.access_token);
     }
   }, [auth.isAuthenticated, auth.user]);
+
+  // Environment-specific UI updates
+  useEffect(() => {
+    // Update theme color
+    document.documentElement.style.setProperty('--env-color', currentEnv.color);
+    
+    // Update document title
+    const prefix = currentEnv.id === 'prod' ? '🚨 PRODUCTION' : currentEnv.name.toUpperCase();
+    document.title = `[${prefix}] ECS Dashboard`;
+    
+    return () => {
+      document.title = 'ECS Dashboard';
+    };
+  }, [currentEnv]);
 
   const isAuthenticated = auth.isAuthenticated || manualAuthenticated;
 
@@ -57,14 +71,21 @@ function App() {
 
   return (
     <div className="app-container animate-fade-in">
-      <header className="header">
+      <div className={`top-banner ${currentEnv.id}`}>
+        {currentEnv.id === 'prod' ? <AlertTriangle size={14} className="mr-2" /> : <ShieldCheck size={14} className="mr-2" />}
+        <span>Active Environment: <strong>{currentEnv.name}</strong></span>
+        {currentEnv.id === 'prod' && <span className="ml-4 opacity-75 hidden sm:inline">| USE CAUTION</span>}
+      </div>
+
+      <header className="header" style={{ borderTop: `2px solid ${currentEnv.color}` }}>
         <div className="header-content">
           <div className="flex items-center gap-4">
-            <LayoutDashboard color="var(--accent-primary)" size={28} />
+            <LayoutDashboard color={currentEnv.color} size={28} />
             <div className="flex flex-col">
               <h1>ECS Dashboard</h1>
               <div className="flex items-center gap-2">
                 <span className="env-tag">
+                  {currentEnv.id === 'prod' && <Activity size={10} className="animate-pulse" />}
                   {currentEnv.name}
                 </span>
                 <button

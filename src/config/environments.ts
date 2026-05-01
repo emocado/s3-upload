@@ -11,44 +11,49 @@ export interface EnvironmentConfig {
   cognitoAuthority: string;
   cognitoClientId: string;
   appUrl: string;
+  color: string;
 }
 
 export const ENVIRONMENTS: Record<string, EnvironmentConfig> = {
   dev: {
     id: 'dev',
     name: 'Development',
-    apiBaseUrl: 'https://dev-api.example.com/prod',
-    cognitoDomain: 'https://ecs-dash-dev.auth.ap-southeast-1.amazoncognito.com',
-    cognitoAuthority: 'https://cognito-idp.ap-southeast-1.amazonaws.com/ap-southeast-1_dev_pool',
-    cognitoClientId: 'dev_client_id',
+    apiBaseUrl: import.meta.env.VITE_DEV_API_BASE_URL,
+    cognitoDomain: import.meta.env.VITE_DEV_COGNITO_DOMAIN,
+    cognitoAuthority: import.meta.env.VITE_DEV_COGNITO_AUTHORITY,
+    cognitoClientId: import.meta.env.VITE_DEV_COGNITO_CLIENT_ID,
     appUrl: import.meta.env.VITE_APP_URL,
+    color: '#3b82f6', // Blue
   },
   qa: {
     id: 'qa',
     name: 'QA',
-    apiBaseUrl: 'https://qa-api.example.com/prod',
-    cognitoDomain: 'https://ecs-dash-qa.auth.ap-southeast-1.amazoncognito.com',
-    cognitoAuthority: 'https://cognito-idp.ap-southeast-1.amazonaws.com/ap-southeast-1_qa_pool',
-    cognitoClientId: 'qa_client_id',
+    apiBaseUrl: import.meta.env.VITE_QA_API_BASE_URL,
+    cognitoDomain: import.meta.env.VITE_QA_COGNITO_DOMAIN,
+    cognitoAuthority: import.meta.env.VITE_QA_COGNITO_AUTHORITY,
+    cognitoClientId: import.meta.env.VITE_QA_COGNITO_CLIENT_ID,
     appUrl: import.meta.env.VITE_APP_URL,
+    color: '#10b981', // Emerald
   },
   stg: {
     id: 'stg',
     name: 'Staging',
-    apiBaseUrl: 'https://5y4fp0ghhe.execute-api.ap-southeast-1.amazonaws.com/prod',
-    cognitoDomain: 'https://ecs-dash-0bxd6j.auth.ap-southeast-1.amazoncognito.com',
-    cognitoAuthority: 'https://cognito-idp.ap-southeast-1.amazonaws.com/ap-southeast-1_zWAM10I87',
-    cognitoClientId: '69d2bbk3i6ad3ppekfgg41lj51',
+    apiBaseUrl: import.meta.env.VITE_STG_API_BASE_URL,
+    cognitoDomain: import.meta.env.VITE_STG_COGNITO_DOMAIN,
+    cognitoAuthority: import.meta.env.VITE_STG_COGNITO_AUTHORITY,
+    cognitoClientId: import.meta.env.VITE_STG_COGNITO_CLIENT_ID,
     appUrl: import.meta.env.VITE_APP_URL,
+    color: '#f59e0b', // Amber
   },
   prod: {
     id: 'prod',
     name: 'Production',
-    apiBaseUrl: 'https://mpgj92ie2d.execute-api.ap-southeast-1.amazonaws.com/prod',
-    cognitoDomain: 'https://ecs-dash-d1de95.auth.ap-southeast-1.amazoncognito.com',
-    cognitoAuthority: 'https://cognito-idp.ap-southeast-1.amazonaws.com/ap-southeast-1_VstVtdqzY',
-    cognitoClientId: '5p20qbsah6js1nipk35n0mt63m',
+    apiBaseUrl: import.meta.env.VITE_PROD_API_BASE_URL,
+    cognitoDomain: import.meta.env.VITE_PROD_COGNITO_DOMAIN,
+    cognitoAuthority: import.meta.env.VITE_PROD_COGNITO_AUTHORITY,
+    cognitoClientId: import.meta.env.VITE_PROD_COGNITO_CLIENT_ID,
     appUrl: import.meta.env.VITE_APP_URL,
+    color: '#ef4444', // Red
   },
 };
 

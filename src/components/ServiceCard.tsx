@@ -3,6 +3,7 @@ import { Box, Code2, RotateCw, Loader2, History, Tag, Clock, Play, Square } from
 import { getTaskDefinition, manageService } from '../services/api';
 import type { ServiceStatus, TaskDefinition, ECRImage } from '../services/api';
 import { TaskDefModal } from './TaskDefModal';
+import { getCurrentEnv } from '../config/environments';
 
 interface ServiceCardProps {
   service: ServiceStatus;
@@ -38,11 +39,20 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, onActionCompl
   };
 
   const handleManage = async (action: 'restart' | 'start' | 'stop') => {
-    const confirmMsg = {
+    const currentEnv = getCurrentEnv();
+    const isProd = currentEnv.id === 'prod';
+    
+    let confirmMsg = {
       restart: `Are you sure you want to restart ${service.serviceName}?`,
       start: `Are you sure you want to start ${service.serviceName}?`,
       stop: `Are you sure you want to stop ${service.serviceName}? This will terminate all running tasks.`
     }[action];
+
+    if (isProd) {
+      confirmMsg = `⚠️ CRITICAL: YOU ARE IN PRODUCTION ⚠️\n\n${confirmMsg.toUpperCase()}\n\nAre you absolutely sure you want to proceed?`;
+    } else {
+      confirmMsg = `[${currentEnv.name}] ${confirmMsg}`;
+    }
 
     if (!window.confirm(confirmMsg)) return;
     

@@ -1,0 +1,14 @@
+[
+  {
+    "ParameterKey": "ProjectName",
+    "ParameterValue": "preview-poc"
+  },
+  {
+    "ParameterKey": "VpcId",
+    "ParameterValue": "vpc-c403c2a2"
+  },
+  {
+    "ParameterKey": "SubnetIds",
+    "ParameterValue": "subnet-0ef28a15cb676dd34,subnet-0e61af086a066cc04"
+  }
+]

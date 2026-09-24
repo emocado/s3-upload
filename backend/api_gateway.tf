@@ -1,413 +1,269 @@
-# REST API
-resource "aws_api_gateway_rest_api" "main" {
+# 1. REST API
+resource "aws_api_gateway_rest_api" "preview_api" {
   name        = "${var.project_name}-api"
+  description = "Preview Environments Management API"
+
   endpoint_configuration {
     types = ["REGIONAL"]
   }
 }
 
-# --- Resources ---
+# 2. Resources
+
+# /preview
+resource "aws_api_gateway_resource" "preview" {
+  rest_api_id = aws_api_gateway_rest_api.preview_api.id
+  parent_id   = aws_api_gateway_rest_api.preview_api.root_resource_id
+  path_part   = "preview"
+}
+
+# /previews
+resource "aws_api_gateway_resource" "previews" {
+  rest_api_id = aws_api_gateway_rest_api.preview_api.id
+  parent_id   = aws_api_gateway_rest_api.preview_api.root_resource_id
+  path_part   = "previews"
+}
 
 # /presigned-url
 resource "aws_api_gateway_resource" "presigned_url" {
-  rest_api_id = aws_api_gateway_rest_api.main.id
-  parent_id   = aws_api_gateway_rest_api.main.root_resource_id
+  rest_api_id = aws_api_gateway_rest_api.preview_api.id
+  parent_id   = aws_api_gateway_rest_api.preview_api.root_resource_id
   path_part   = "presigned-url"
 }
 
-# /services
-resource "aws_api_gateway_resource" "services" {
-  rest_api_id = aws_api_gateway_rest_api.main.id
-  parent_id   = aws_api_gateway_rest_api.main.root_resource_id
-  path_part   = "services"
+# /unzip
+resource "aws_api_gateway_resource" "unzip" {
+  rest_api_id = aws_api_gateway_rest_api.preview_api.id
+  parent_id   = aws_api_gateway_rest_api.preview_api.root_resource_id
+  path_part   = "unzip"
 }
 
-# /task-definition
-resource "aws_api_gateway_resource" "task_def" {
-  rest_api_id = aws_api_gateway_rest_api.main.id
-  parent_id   = aws_api_gateway_rest_api.main.root_resource_id
-  path_part   = "task-definition"
+# /preview/{name}
+resource "aws_api_gateway_resource" "preview_name" {
+  rest_api_id = aws_api_gateway_rest_api.preview_api.id
+  parent_id   = aws_api_gateway_resource.preview.id
+  path_part   = "{name}"
 }
 
-# /update-task
-resource "aws_api_gateway_resource" "update_task" {
-  rest_api_id = aws_api_gateway_rest_api.main.id
-  parent_id   = aws_api_gateway_rest_api.main.root_resource_id
-  path_part   = "update-task"
+# /preview/{name}/{proxy+}
+resource "aws_api_gateway_resource" "preview_name_proxy" {
+  rest_api_id = aws_api_gateway_rest_api.preview_api.id
+  parent_id   = aws_api_gateway_resource.preview_name.id
+  path_part   = "{proxy+}"
 }
 
-# /restart
-resource "aws_api_gateway_resource" "restart" {
-  rest_api_id = aws_api_gateway_rest_api.main.id
-  parent_id   = aws_api_gateway_rest_api.main.root_resource_id
-  path_part   = "restart"
+# 3. Methods & Integrations (Lambda Proxy)
+
+# POST /preview
+resource "aws_api_gateway_method" "post_preview" {
+  rest_api_id   = aws_api_gateway_rest_api.preview_api.id
+  resource_id   = aws_api_gateway_resource.preview.id
+  http_method   = "POST"
+  authorization = "NONE"
 }
 
-# --- Methods & Integrations ---
-
-# Cognito Authorizer
-resource "aws_api_gateway_authorizer" "cognito" {
-  name                   = "cognito-authorizer"
-  rest_api_id            = aws_api_gateway_rest_api.main.id
-  type                   = "COGNITO_USER_POOLS"
-  provider_arns          = [aws_cognito_user_pool.pool.arn]
+resource "aws_api_gateway_integration" "post_preview" {
+  rest_api_id             = aws_api_gateway_rest_api.preview_api.id
+  resource_id             = aws_api_gateway_resource.preview.id
+  http_method             = aws_api_gateway_method.post_preview.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.preview_api_handler.invoke_arn
 }
 
-# 1. getPresignedUrl (/presigned-url)
-resource "aws_api_gateway_method" "presigned_url" {
-  rest_api_id   = aws_api_gateway_rest_api.main.id
+# GET /previews
+resource "aws_api_gateway_method" "get_previews" {
+  rest_api_id   = aws_api_gateway_rest_api.preview_api.id
+  resource_id   = aws_api_gateway_resource.previews.id
+  http_method   = "GET"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "get_previews" {
+  rest_api_id             = aws_api_gateway_rest_api.preview_api.id
+  resource_id             = aws_api_gateway_resource.previews.id
+  http_method             = aws_api_gateway_method.get_previews.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.preview_api_handler.invoke_arn
+}
+
+# GET /presigned-url
+resource "aws_api_gateway_method" "get_presigned_url" {
+  rest_api_id   = aws_api_gateway_rest_api.preview_api.id
   resource_id   = aws_api_gateway_resource.presigned_url.id
   http_method   = "GET"
-  authorization = "COGNITO_USER_POOLS"
-  authorizer_id = aws_api_gateway_authorizer.cognito.id
-  authorization_scopes = [
-    "${aws_cognito_resource_server.api.identifier}/all",
-  ]
-}
-resource "aws_api_gateway_integration" "presigned_url" {
-  rest_api_id = aws_api_gateway_rest_api.main.id
-  resource_id = aws_api_gateway_resource.presigned_url.id
-  http_method = aws_api_gateway_method.presigned_url.http_method
-  integration_http_method = "POST"
-  type                    = "AWS_PROXY"
-  uri                     = aws_lambda_function.get_presigned_url.invoke_arn
-}
-resource "aws_lambda_permission" "presigned_url" {
-  statement_id  = "AllowAPIGatewayInvoke"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.get_presigned_url.function_name
-  principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_api_gateway_rest_api.main.execution_arn}/*/*"
-}
-
-# CORS for /presigned-url
-resource "aws_api_gateway_method" "presigned_url_cors" {
-  rest_api_id   = aws_api_gateway_rest_api.main.id
-  resource_id   = aws_api_gateway_resource.presigned_url.id
-  http_method   = "OPTIONS"
   authorization = "NONE"
 }
-resource "aws_api_gateway_integration" "presigned_url_cors" {
-  rest_api_id = aws_api_gateway_rest_api.main.id
-  resource_id = aws_api_gateway_resource.presigned_url.id
-  http_method = aws_api_gateway_method.presigned_url_cors.http_method
-  type        = "MOCK"
-  request_templates = {
-    "application/json" = "{ \"statusCode\": 200 }"
-  }
-}
-resource "aws_api_gateway_method_response" "presigned_url_cors" {
-  rest_api_id = aws_api_gateway_rest_api.main.id
-  resource_id = aws_api_gateway_resource.presigned_url.id
-  http_method = aws_api_gateway_method.presigned_url_cors.http_method
-  status_code = "200"
-  response_parameters = {
-    "method.response.header.Access-Control-Allow-Headers" = true
-    "method.response.header.Access-Control-Allow-Methods" = true
-    "method.response.header.Access-Control-Allow-Origin"  = true
-  }
-}
-resource "aws_api_gateway_integration_response" "presigned_url_cors" {
-  rest_api_id = aws_api_gateway_rest_api.main.id
-  resource_id = aws_api_gateway_resource.presigned_url.id
-  http_method = aws_api_gateway_method.presigned_url_cors.http_method
-  status_code = aws_api_gateway_method_response.presigned_url_cors.status_code
-  response_parameters = {
-    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
-    "method.response.header.Access-Control-Allow-Methods" = "'GET,POST,OPTIONS,PUT'"
-    "method.response.header.Access-Control-Allow-Origin"  = "'*'"
-  }
-}
 
-# 2. getServicesStatus (/services)
-resource "aws_api_gateway_method" "services" {
-  rest_api_id   = aws_api_gateway_rest_api.main.id
-  resource_id   = aws_api_gateway_resource.services.id
-  http_method   = "GET"
-  authorization = "COGNITO_USER_POOLS"
-  authorizer_id = aws_api_gateway_authorizer.cognito.id
-  authorization_scopes = [
-    "${aws_cognito_resource_server.api.identifier}/all",
-  ]
-}
-resource "aws_api_gateway_integration" "services" {
-  rest_api_id = aws_api_gateway_rest_api.main.id
-  resource_id = aws_api_gateway_resource.services.id
-  http_method = aws_api_gateway_method.services.http_method
+resource "aws_api_gateway_integration" "get_presigned_url" {
+  rest_api_id             = aws_api_gateway_rest_api.preview_api.id
+  resource_id             = aws_api_gateway_resource.presigned_url.id
+  http_method             = aws_api_gateway_method.get_presigned_url.http_method
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
-  uri                     = aws_lambda_function.get_services_status.invoke_arn
-}
-resource "aws_lambda_permission" "services" {
-  statement_id  = "AllowAPIGatewayInvoke"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.get_services_status.function_name
-  principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_api_gateway_rest_api.main.execution_arn}/*/*"
+  uri                     = aws_lambda_function.preview_api_handler.invoke_arn
 }
 
-# CORS for /services
-resource "aws_api_gateway_method" "services_cors" {
-  rest_api_id   = aws_api_gateway_rest_api.main.id
-  resource_id   = aws_api_gateway_resource.services.id
-  http_method   = "OPTIONS"
-  authorization = "NONE"
-}
-resource "aws_api_gateway_integration" "services_cors" {
-  rest_api_id = aws_api_gateway_rest_api.main.id
-  resource_id = aws_api_gateway_resource.services.id
-  http_method = aws_api_gateway_method.services_cors.http_method
-  type        = "MOCK"
-  request_templates = {
-    "application/json" = "{ \"statusCode\": 200 }"
-  }
-}
-resource "aws_api_gateway_method_response" "services_cors" {
-  rest_api_id = aws_api_gateway_rest_api.main.id
-  resource_id = aws_api_gateway_resource.services.id
-  http_method = aws_api_gateway_method.services_cors.http_method
-  status_code = "200"
-  response_parameters = {
-    "method.response.header.Access-Control-Allow-Headers" = true
-    "method.response.header.Access-Control-Allow-Methods" = true
-    "method.response.header.Access-Control-Allow-Origin"  = true
-  }
-}
-resource "aws_api_gateway_integration_response" "services_cors" {
-  rest_api_id = aws_api_gateway_rest_api.main.id
-  resource_id = aws_api_gateway_resource.services.id
-  http_method = aws_api_gateway_method.services_cors.http_method
-  status_code = aws_api_gateway_method_response.services_cors.status_code
-  response_parameters = {
-    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
-    "method.response.header.Access-Control-Allow-Methods" = "'GET,POST,OPTIONS,PUT'"
-    "method.response.header.Access-Control-Allow-Origin"  = "'*'"
-  }
-}
-
-# 3. getTaskDefinition (/task-definition)
-resource "aws_api_gateway_method" "task_def" {
-  rest_api_id   = aws_api_gateway_rest_api.main.id
-  resource_id   = aws_api_gateway_resource.task_def.id
-  http_method   = "GET"
-  authorization = "COGNITO_USER_POOLS"
-  authorizer_id = aws_api_gateway_authorizer.cognito.id
-  authorization_scopes = [
-    "${aws_cognito_resource_server.api.identifier}/all",
-  ]
-}
-resource "aws_api_gateway_integration" "task_def" {
-  rest_api_id = aws_api_gateway_rest_api.main.id
-  resource_id = aws_api_gateway_resource.task_def.id
-  http_method = aws_api_gateway_method.task_def.http_method
-  integration_http_method = "POST"
-  type                    = "AWS_PROXY"
-  uri                     = aws_lambda_function.get_task_def.invoke_arn
-}
-resource "aws_lambda_permission" "task_def" {
-  statement_id  = "AllowAPIGatewayInvoke"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.get_task_def.function_name
-  principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_api_gateway_rest_api.main.execution_arn}/*/*"
-}
-
-# CORS for /task-definition
-resource "aws_api_gateway_method" "task_def_cors" {
-  rest_api_id   = aws_api_gateway_rest_api.main.id
-  resource_id   = aws_api_gateway_resource.task_def.id
-  http_method   = "OPTIONS"
-  authorization = "NONE"
-}
-resource "aws_api_gateway_integration" "task_def_cors" {
-  rest_api_id = aws_api_gateway_rest_api.main.id
-  resource_id = aws_api_gateway_resource.task_def.id
-  http_method = aws_api_gateway_method.task_def_cors.http_method
-  type        = "MOCK"
-  request_templates = {
-    "application/json" = "{ \"statusCode\": 200 }"
-  }
-}
-resource "aws_api_gateway_method_response" "task_def_cors" {
-  rest_api_id = aws_api_gateway_rest_api.main.id
-  resource_id = aws_api_gateway_resource.task_def.id
-  http_method = aws_api_gateway_method.task_def_cors.http_method
-  status_code = "200"
-  response_parameters = {
-    "method.response.header.Access-Control-Allow-Headers" = true
-    "method.response.header.Access-Control-Allow-Methods" = true
-    "method.response.header.Access-Control-Allow-Origin"  = true
-  }
-}
-resource "aws_api_gateway_integration_response" "task_def_cors" {
-  rest_api_id = aws_api_gateway_rest_api.main.id
-  resource_id = aws_api_gateway_resource.task_def.id
-  http_method = aws_api_gateway_method.task_def_cors.http_method
-  status_code = aws_api_gateway_method_response.task_def_cors.status_code
-  response_parameters = {
-    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
-    "method.response.header.Access-Control-Allow-Methods" = "'GET,POST,OPTIONS,PUT'"
-    "method.response.header.Access-Control-Allow-Origin"  = "'*'"
-  }
-}
-
-# 4. updateTaskDefinition (/update-task)
-resource "aws_api_gateway_method" "update_task" {
-  rest_api_id   = aws_api_gateway_rest_api.main.id
-  resource_id   = aws_api_gateway_resource.update_task.id
+# POST /unzip
+resource "aws_api_gateway_method" "post_unzip" {
+  rest_api_id   = aws_api_gateway_rest_api.preview_api.id
+  resource_id   = aws_api_gateway_resource.unzip.id
   http_method   = "POST"
-  authorization = "COGNITO_USER_POOLS"
-  authorizer_id = aws_api_gateway_authorizer.cognito.id
-  authorization_scopes = [
-    "${aws_cognito_resource_server.api.identifier}/all",
-  ]
-}
-resource "aws_api_gateway_integration" "update_task" {
-  rest_api_id = aws_api_gateway_rest_api.main.id
-  resource_id = aws_api_gateway_resource.update_task.id
-  http_method = aws_api_gateway_method.update_task.http_method
-  integration_http_method = "POST"
-  type                    = "AWS_PROXY"
-  uri                     = aws_lambda_function.update_task_def.invoke_arn
-}
-resource "aws_lambda_permission" "update_task" {
-  statement_id  = "AllowAPIGatewayInvoke"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.update_task_def.function_name
-  principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_api_gateway_rest_api.main.execution_arn}/*/*"
+  authorization = "NONE"
 }
 
-# CORS for /update-task
-resource "aws_api_gateway_method" "update_task_cors" {
-  rest_api_id   = aws_api_gateway_rest_api.main.id
-  resource_id   = aws_api_gateway_resource.update_task.id
+resource "aws_api_gateway_integration" "post_unzip" {
+  rest_api_id             = aws_api_gateway_rest_api.preview_api.id
+  resource_id             = aws_api_gateway_resource.unzip.id
+  http_method             = aws_api_gateway_method.post_unzip.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.preview_api_handler.invoke_arn
+}
+
+# ANY /preview/{name}
+resource "aws_api_gateway_method" "any_preview_name" {
+  rest_api_id   = aws_api_gateway_rest_api.preview_api.id
+  resource_id   = aws_api_gateway_resource.preview_name.id
+  http_method   = "ANY"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "any_preview_name" {
+  rest_api_id             = aws_api_gateway_rest_api.preview_api.id
+  resource_id             = aws_api_gateway_resource.preview_name.id
+  http_method             = aws_api_gateway_method.any_preview_name.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.preview_api_handler.invoke_arn
+}
+
+# ANY /preview/{name}/{proxy+}
+resource "aws_api_gateway_method" "any_preview_proxy" {
+  rest_api_id   = aws_api_gateway_rest_api.preview_api.id
+  resource_id   = aws_api_gateway_resource.preview_name_proxy.id
+  http_method   = "ANY"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "any_preview_proxy" {
+  rest_api_id             = aws_api_gateway_rest_api.preview_api.id
+  resource_id             = aws_api_gateway_resource.preview_name_proxy.id
+  http_method             = aws_api_gateway_method.any_preview_proxy.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.preview_api_handler.invoke_arn
+}
+
+# 4. Native OPTIONS CORS Support
+locals {
+  cors_resources = [
+    aws_api_gateway_resource.preview.id,
+    aws_api_gateway_resource.previews.id,
+    aws_api_gateway_resource.presigned_url.id,
+    aws_api_gateway_resource.unzip.id,
+    aws_api_gateway_resource.preview_name.id,
+    aws_api_gateway_resource.preview_name_proxy.id
+  ]
+}
+
+resource "aws_api_gateway_method" "options" {
+  count         = length(local.cors_resources)
+  rest_api_id   = aws_api_gateway_rest_api.preview_api.id
+  resource_id   = local.cors_resources[count.index]
   http_method   = "OPTIONS"
   authorization = "NONE"
 }
-resource "aws_api_gateway_integration" "update_task_cors" {
-  rest_api_id = aws_api_gateway_rest_api.main.id
-  resource_id = aws_api_gateway_resource.update_task.id
-  http_method = aws_api_gateway_method.update_task_cors.http_method
+
+resource "aws_api_gateway_integration" "options" {
+  count       = length(local.cors_resources)
+  rest_api_id = aws_api_gateway_rest_api.preview_api.id
+  resource_id = local.cors_resources[count.index]
+  http_method = aws_api_gateway_method.options[count.index].http_method
   type        = "MOCK"
+
   request_templates = {
-    "application/json" = "{ \"statusCode\": 200 }"
+    "application/json" = "{\"statusCode\": 200}"
   }
 }
-resource "aws_api_gateway_method_response" "update_task_cors" {
-  rest_api_id = aws_api_gateway_rest_api.main.id
-  resource_id = aws_api_gateway_resource.update_task.id
-  http_method = aws_api_gateway_method.update_task_cors.http_method
+
+resource "aws_api_gateway_method_response" "options_200" {
+  count       = length(local.cors_resources)
+  rest_api_id = aws_api_gateway_rest_api.preview_api.id
+  resource_id = local.cors_resources[count.index]
+  http_method = aws_api_gateway_method.options[count.index].http_method
   status_code = "200"
+
   response_parameters = {
     "method.response.header.Access-Control-Allow-Headers" = true
     "method.response.header.Access-Control-Allow-Methods" = true
     "method.response.header.Access-Control-Allow-Origin"  = true
   }
 }
-resource "aws_api_gateway_integration_response" "update_task_cors" {
-  rest_api_id = aws_api_gateway_rest_api.main.id
-  resource_id = aws_api_gateway_resource.update_task.id
-  http_method = aws_api_gateway_method.update_task_cors.http_method
-  status_code = aws_api_gateway_method_response.update_task_cors.status_code
+
+resource "aws_api_gateway_integration_response" "options_200" {
+  count       = length(local.cors_resources)
+  rest_api_id = aws_api_gateway_rest_api.preview_api.id
+  resource_id = local.cors_resources[count.index]
+  http_method = aws_api_gateway_method.options[count.index].http_method
+  status_code = aws_api_gateway_method_response.options_200[count.index].status_code
+
   response_parameters = {
-    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
-    "method.response.header.Access-Control-Allow-Methods" = "'GET,POST,OPTIONS,PUT'"
+    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Preview-Env'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS,POST,PUT,DELETE'"
     "method.response.header.Access-Control-Allow-Origin"  = "'*'"
   }
+
+  depends_on = [aws_api_gateway_integration.options]
 }
 
-# 5. restartService (/restart)
-resource "aws_api_gateway_method" "restart" {
-  rest_api_id   = aws_api_gateway_rest_api.main.id
-  resource_id   = aws_api_gateway_resource.restart.id
-  http_method   = "POST"
-  authorization = "COGNITO_USER_POOLS"
-  authorizer_id = aws_api_gateway_authorizer.cognito.id
-  authorization_scopes = [
-    "${aws_cognito_resource_server.api.identifier}/all",
-  ]
-}
-resource "aws_api_gateway_integration" "restart" {
-  rest_api_id = aws_api_gateway_rest_api.main.id
-  resource_id = aws_api_gateway_resource.restart.id
-  http_method = aws_api_gateway_method.restart.http_method
-  integration_http_method = "POST"
-  type                    = "AWS_PROXY"
-  uri                     = aws_lambda_function.restart_service.invoke_arn
-}
-resource "aws_lambda_permission" "restart" {
-  statement_id  = "AllowAPIGatewayInvoke"
+# 5. Permission for API Gateway to invoke PreviewApiHandler Lambda
+resource "aws_lambda_permission" "apigw_invoke_handler" {
+  statement_id  = "AllowAPIGatewayInvokeHandler"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.restart_service.function_name
+  function_name = aws_lambda_function.preview_api_handler.function_name
   principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_api_gateway_rest_api.main.execution_arn}/*/*"
+  source_arn    = "${aws_api_gateway_rest_api.preview_api.execution_arn}/*/*"
 }
 
-# CORS for /restart
-resource "aws_api_gateway_method" "restart_cors" {
-  rest_api_id   = aws_api_gateway_rest_api.main.id
-  resource_id   = aws_api_gateway_resource.restart.id
-  http_method   = "OPTIONS"
-  authorization = "NONE"
-}
-resource "aws_api_gateway_integration" "restart_cors" {
-  rest_api_id = aws_api_gateway_rest_api.main.id
-  resource_id = aws_api_gateway_resource.restart.id
-  http_method = aws_api_gateway_method.restart_cors.http_method
-  type        = "MOCK"
-  request_templates = {
-    "application/json" = "{ \"statusCode\": 200 }"
+# 6. Deployment & Stage
+resource "aws_api_gateway_deployment" "deployment" {
+  rest_api_id = aws_api_gateway_rest_api.preview_api.id
+
+  triggers = {
+    redeployment = sha1(jsonencode([
+      aws_api_gateway_resource.preview.id,
+      aws_api_gateway_resource.previews.id,
+      aws_api_gateway_resource.presigned_url.id,
+      aws_api_gateway_resource.preview_name.id,
+      aws_api_gateway_method.post_preview.id,
+      aws_api_gateway_method.get_previews.id,
+      aws_api_gateway_method.get_presigned_url.id,
+      aws_api_gateway_method.any_preview_name.id,
+      aws_api_gateway_integration.post_preview.id,
+      aws_api_gateway_integration.get_previews.id,
+      aws_api_gateway_integration.get_presigned_url.id,
+      aws_api_gateway_integration.any_preview_name.id
+    ]))
   }
-}
-resource "aws_api_gateway_method_response" "restart_cors" {
-  rest_api_id = aws_api_gateway_rest_api.main.id
-  resource_id = aws_api_gateway_resource.restart.id
-  http_method = aws_api_gateway_method.restart_cors.http_method
-  status_code = "200"
-  response_parameters = {
-    "method.response.header.Access-Control-Allow-Headers" = true
-    "method.response.header.Access-Control-Allow-Methods" = true
-    "method.response.header.Access-Control-Allow-Origin"  = true
-  }
-}
-resource "aws_api_gateway_integration_response" "restart_cors" {
-  rest_api_id = aws_api_gateway_rest_api.main.id
-  resource_id = aws_api_gateway_resource.restart.id
-  http_method = aws_api_gateway_method.restart_cors.http_method
-  status_code = aws_api_gateway_method_response.restart_cors.status_code
-  response_parameters = {
-    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
-    "method.response.header.Access-Control-Allow-Methods" = "'GET,POST,OPTIONS,PUT'"
-    "method.response.header.Access-Control-Allow-Origin"  = "'*'"
-  }
-}
 
-# --- Deployment & Stage ---
-
-resource "aws_api_gateway_deployment" "main" {
-  depends_on = [
-    aws_api_gateway_integration.presigned_url,
-    aws_api_gateway_integration.services,
-    aws_api_gateway_integration.task_def,
-    aws_api_gateway_integration.update_task,
-    aws_api_gateway_integration.restart,
-    aws_api_gateway_integration_response.presigned_url_cors,
-    aws_api_gateway_integration_response.services_cors,
-    aws_api_gateway_integration_response.task_def_cors,
-    aws_api_gateway_integration_response.update_task_cors,
-    aws_api_gateway_integration_response.restart_cors
-  ]
-
-  rest_api_id = aws_api_gateway_rest_api.main.id
-  
   lifecycle {
     create_before_destroy = true
   }
+
+  depends_on = [
+    aws_api_gateway_integration.post_preview,
+    aws_api_gateway_integration.get_previews,
+    aws_api_gateway_integration.get_presigned_url,
+    aws_api_gateway_integration.any_preview_name,
+    aws_api_gateway_integration.any_preview_proxy,
+    aws_api_gateway_integration_response.options_200
+  ]
 }
 
 resource "aws_api_gateway_stage" "prod" {
-  deployment_id = aws_api_gateway_deployment.main.id
-  rest_api_id   = aws_api_gateway_rest_api.main.id
+  deployment_id = aws_api_gateway_deployment.deployment.id
+  rest_api_id   = aws_api_gateway_rest_api.preview_api.id
   stage_name    = "prod"
 }

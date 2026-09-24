@@ -1,46 +1,44 @@
 output "api_endpoint" {
-  value       = "${aws_api_gateway_stage.prod.invoke_url}"
-  description = "The root URL of the API Gateway stage"
+  value       = aws_api_gateway_stage.prod.invoke_url
+  description = "The root URL of the Preview Management API Gateway stage"
 }
 
-output "s3_bucket_name" {
-  value = aws_s3_bucket.uploads.id
+output "alb_dns_name" {
+  value       = aws_lb.main.dns_name
+  description = "DNS name of the Main Preview Application Load Balancer"
+}
+
+output "alb_http_url" {
+  value       = "http://${aws_lb.main.dns_name}"
+  description = "HTTP URL of the Main Preview Application Load Balancer"
+}
+
+output "preview_assets_bucket" {
+  value       = aws_s3_bucket.preview_assets.id
+  description = "S3 bucket for preview frontend assets"
+}
+
+output "dynamodb_table_name" {
+  value       = aws_dynamodb_table.preview_metadata.name
+  description = "DynamoDB table storing preview metadata"
 }
 
 output "ecs_cluster_name" {
-  value = aws_ecs_cluster.main.name
+  value       = aws_ecs_cluster.main.name
+  description = "ECS Cluster Name"
 }
 
-output "ecs_service_name" {
-  value = aws_ecs_service.app_service.name
+output "msk_cluster_arn" {
+  value       = aws_msk_serverless_cluster.preview_msk.arn
+  description = "MSK Serverless Cluster ARN"
 }
 
-output "user_pool_id" {
-  value = aws_cognito_user_pool.pool.id
+output "create_step_function_arn" {
+  value       = aws_sfn_state_machine.create_preview.arn
+  description = "Step Function ARN for creating previews"
 }
 
-output "cognito_domain_url" {
-  value = "https://${aws_cognito_user_pool_domain.main.domain}.auth.${var.aws_region}.amazoncognito.com"
-}
-
-output "client_creds_id" {
-  value = aws_cognito_user_pool_client.client_creds.id
-}
-
-output "client_creds_secret" {
-  value     = aws_cognito_user_pool_client.client_creds.client_secret
-  sensitive = true
-}
-
-output "web_client_id" {
-  value = aws_cognito_user_pool_client.web_client.id
-}
-
-output "cognito_issuer" {
-  value = "https://cognito-idp.${var.aws_region}.amazonaws.com/${aws_cognito_user_pool.pool.id}"
-}
-
-output "iot_endpoint" {
-  value       = data.aws_iot_endpoint.data.endpoint_address
-  description = "The AWS IoT Core Data-ATS endpoint"
+output "destroy_step_function_arn" {
+  value       = aws_sfn_state_machine.destroy_preview.arn
+  description = "Step Function ARN for destroying previews"
 }

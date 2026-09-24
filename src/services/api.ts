@@ -160,14 +160,142 @@ export async function manageService(
 }
 
 /**
- * Helper to call real API and attach Authorization header
+ * Helper to call real API and attach Authorization header if available
  */
 export async function authFetch(url: string, options: RequestInit = {}) {
   const token = getAccessToken();
-  const headers = {
-    ...options.headers,
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`
+    ...(options.headers as Record<string, string> || {})
   };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
   return fetch(url, { ...options, headers });
 }
+
+// --- Preview Environments API ---
+
+export interface PreviewEnvironment {
+  previewName: string;
+  status: 'CREATING' | 'ACTIVE' | 'FAILED' | 'DESTROYING' | 'DESTROYED' | string;
+  createdAt: string;
+  ttl: number | null;
+  previewUrl: string;
+  apiBaseUrl: string;
+  serviceArn?: string;
+  targetGroupArn?: string;
+  ruleArn?: string;
+  taskDefArn?: string;
+  executionArn?: string;
+  errorMessage?: string;
+}
+
+export interface PreviewsResponse {
+  previews: PreviewEnvironment[];
+  maxCapacity: number;
+  activeCount: number;
+  albDomain: string;
+}
+
+/**
+ * Fetch all preview environments
+ */
+export async function fetchPreviews(): Promise<PreviewsResponse> {
+  const env = getCurrentEnv();
+  const response = await authFetch(`${env.apiBaseUrl}/previews`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to fetch previews');
+  }
+  return response.json();
+}
+
+/**
+ * Create a new preview environment
+ */
+export async function createPreview(previewName: string, imageTag?: string): Promise<{ previewName: string; previewUrl: string; executionArn: string }> {
+  const env = getCurrentEnv();
+  const response = await authFetch(`${env.apiBaseUrl}/preview`, {
+    method: 'POST',
+    body: JSON.stringify({ previewName, imageTag: imageTag || 'node-backend' })
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to create preview environment');
+  }
+  return response.json();
+}
+
+/**
+ * Destroy a preview environment
+ */
+export async function destroyPreview(previewName: string): Promise<void> {
+  const env = getCurrentEnv();
+  const response = await authFetch(`${env.apiBaseUrl}/preview/${encodeURIComponent(previewName)}`, {
+    method: 'DELETE'
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Failed to destroy preview ${previewName}`);
+  }
+}
+
+/**
+ * Get status of a preview environment
+ */
+export async function getPreviewStatus(previewName: string): Promise<PreviewEnvironment> {
+  const env = getCurrentEnv();
+  const response = await authFetch(`${env.apiBaseUrl}/preview/${encodeURIComponent(previewName)}/status`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Failed to fetch status for ${previewName}`);
+  }
+  return response.json();
+}
+
+/**
+ * Get presigned URL specifically for preview build upload
+ */
+export async function getPreviewUploadUrl(filename: string, previewName: string): Promise<{ uploadUrl: string; key: string; previewUrl: string }> {
+  const env = getCurrentEnv();
+  const response = await authFetch(`${env.apiBaseUrl}/presigned-url?filename=${encodeURIComponent(filename)}&previewName=${encodeURIComponent(previewName)}`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to get upload URL for preview');
+  }
+  return response.json();
+}
+
+/**
+ * Manually trigger unzip for uploaded preview zip
+ */
+export async function triggerUnzip(zipKey: string, previewName?: string): Promise<any> {
+  const env = getCurrentEnv();
+  const response = await authFetch(`${env.apiBaseUrl}/unzip`, {
+    method: 'POST',
+    body: JSON.stringify({ zipKey, previewName })
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to trigger unzip');
+  }
+  return response.json();
+}
+
+/**
+ * Test calling the preview backend random API with X-Preview-Env header
+ */
+export async function testPreviewBackendApi(albDomain: string, previewName: string): Promise<any> {
+  const url = `http://${albDomain}/api/random`;
+  const response = await fetch(url, {
+    headers: {
+      'X-Preview-Env': previewName
+    }
+  });
+  if (!response.ok) {
+    throw new Error(`API responded with ${response.status} ${response.statusText}`);
+  }
+  return response.json();
+}
+

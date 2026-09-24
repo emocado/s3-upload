@@ -1,0 +1,13 @@
+{
+  "name": "preview-node-backend",
+  "version": "1.0.0",
+  "description": "Node.js Backend serving random API and MSK integration for Preview Environments",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
+  }
+}
